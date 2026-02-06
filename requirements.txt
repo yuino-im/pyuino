@@ -1,0 +1,14 @@
+torch
+tqdm
+protobuf
+transformers<5.0.0
+accelerate
+datasets
+sudachipy
+sudachidict_full
+jaconv
+marisa_trie
+sentencepiece
+fugashi
+unidic-lite
+deepspeed
