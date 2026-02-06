@@ -66,9 +66,9 @@ def train():
 
 
 def main():
-    #train()
-    #build_dictionary()
+    train()
     convert_onnx()
+    build_dictionary()
 
 
 if __name__ == "__main__":
