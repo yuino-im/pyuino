@@ -208,6 +208,7 @@ __marimo__/
 
 yuino_dict.pb
 model.safetensors
+model.onnx
 training_args.bin
 checkpoint-*/
 dataset/

@@ -12,3 +12,4 @@ sentencepiece
 fugashi
 unidic-lite
 deepspeed
+optimum[onnxruntime]
