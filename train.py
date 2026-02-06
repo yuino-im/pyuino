@@ -56,7 +56,7 @@ def train():
 
 
 def main():
-    #train()
+    train()
     build_dictionary()
 
 
