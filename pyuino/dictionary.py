@@ -97,8 +97,8 @@ class YuinoDicPosId:
 
 
 class YuinoDictionary:
-    def __init__(self, dict_path="./YuinoLM", model_path: Optional[str]=None, device="cpu", num_bits=32):
-        self._dict_path = dict_path
+    def __init__(self, model_path: Optional[str]=None, device="cpu", num_bits=32):
+        self._dict_path = model_path
         self._pos_id = YuinoDicPosId()
         self._pos_emb = torch.eye(self._pos_id.pos_id_size)
         self._shifts = torch.arange(num_bits - 1, -1, -1)

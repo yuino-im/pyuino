@@ -1,0 +1,8 @@
+torch
+tqdm
+protobuf
+transformers<5.0.0
+datasets
+sudachipy
+jaconv
+marisa_trie

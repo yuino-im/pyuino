@@ -10,8 +10,7 @@ class YuinoServer:
     def __init__(self, model_path: str, port: int = 30055, buffer: int = 1024):
         self._logger = logging.getLogger('YuinoServer')
         self._s_addr = ("0.0.0.0", port)
-        model = YuinoModel.from_pretrained(model_path)
-        self._converter = YuinoConverter(model)
+        self._converter = YuinoConverter(model_path)
         self._buffer = buffer
         self._logger.info("Yuino-Sever START! (port=%d)" % port)
 
@@ -44,7 +43,7 @@ class YuinoServer:
 
 def run():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-m', '--model', help='model path', default='AnyaLM')
+    arg_parser.add_argument('-m', '--model', help='model path', default='YuinoLM')
     arg_parser.add_argument('-p', '--port', help='server port number', default=30055)
     args = arg_parser.parse_args()
 
