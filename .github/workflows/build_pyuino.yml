@@ -34,5 +34,5 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ghcr.io/pyuino-im/pyuino:latest,
-            ghcr.io/pyuino-im/pyuino:${{ env.TAG_NAME }}
+            ghcr.io/yuino-im/pyuino:latest,
+            ghcr.io/yuino-im/pyuino:${{ env.TAG_NAME }}
