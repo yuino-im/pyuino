@@ -2,21 +2,12 @@ import argparse
 import json
 from transformers import TrainingArguments, AutoModel, AutoTokenizer, Qwen3Config
 from pyuino import YuinoModel, YuinoDictionary, YuinoTrainer
-from optimum.onnxruntime import ORTModelForCausalLM
 
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 base_model_path = "line-corporation/line-distilbert-base-japanese"
 
 model_id = "YuinoLM"
-
-def convert_onnx():
-    model = ORTModelForCausalLM.from_pretrained(
-        model_id,
-        export=True # これをTrueにすると変換が走ります
-    )
-    save_directory = "yuino_onnx"
-    model.save_pretrained(save_directory)
 
 def build_dictionary():
     model = AutoModel.from_pretrained(base_model_path)
@@ -67,7 +58,7 @@ def train():
 
 def main():
     train()
-    convert_onnx()
+    #convert_onnx()
     build_dictionary()
 
 

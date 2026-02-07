@@ -8,7 +8,7 @@ from .converter import YuinoConverter
 
 class YuinoServer:
     def __init__(self, model_path: str, port: int = 30055, buffer: int = 1024):
-        self._logger = logging.getLogger('AnyaServer')
+        self._logger = logging.getLogger('YuinoServer')
         self._s_addr = ("0.0.0.0", port)
         model = YuinoModel.from_pretrained(model_path)
         self._converter = YuinoConverter(model)

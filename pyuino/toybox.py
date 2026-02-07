@@ -1,9 +1,9 @@
 import argparse
-from pyuino import YuinoConverter
+from .converter import YuinoConverter
 
 
 
-def main():
+def toy_run():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-m', '--model_path', help='Yuino Model Path', default="YuinoLM")
     args = arg_parser.parse_args()
@@ -16,6 +16,3 @@ def main():
         rsp = converter.convert(kana)
         print("漢字: " + rsp)
 
-
-if __name__ == '__main__':
-    main()
