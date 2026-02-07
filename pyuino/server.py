@@ -48,5 +48,5 @@ def run():
     arg_parser.add_argument('-p', '--port', help='server port number', default=30055)
     args = arg_parser.parse_args()
 
-    server = AnyaServer(args.model, args.port)
+    server = YuinoServer(args.model, args.port)
     server()

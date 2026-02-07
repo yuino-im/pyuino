@@ -42,7 +42,7 @@
   "sliding_window": null,
   "tie_word_embeddings": true,
   "transformers_version": "4.57.6",
-  "use_cache": false,
+  "use_cache": true,
   "use_sliding_window": false,
   "vocab_size": 32768
 }

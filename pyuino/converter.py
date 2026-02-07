@@ -51,5 +51,6 @@ class YuinoConverter:
             fixed_words += word
 
         print("%s : %f msec" % (fixed_words, time.time() - start_time))
+        return fixed_words
 
 
