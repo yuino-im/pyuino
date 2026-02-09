@@ -11,7 +11,7 @@ pip install pyuino
 ```
 
 ### モデル・辞書ファイルの準備
-下記の場所からモデルファイル及び辞書ファイルをダウンロードしてください
+下記の場所からモデルファイル及び辞書ファイルをダウンロードしてください  
 https://www.dropbox.com/scl/fo/03sverk4gsj3l8qmx9ltw/ACueNBsN8EwwSYP18v2a1lQ?rlkey=99ki15e75q3cx9ddmotzgcpah&st=2n8rooyz&dl=0
 
 * config.json

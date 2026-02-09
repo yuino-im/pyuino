@@ -40,7 +40,7 @@ class YuinoConverter:
             if i != 0:
                 fixed_words += self._dict.surface(word)
 
-        print("%s : %f msec" % (fixed_words, time.time() - start_time))
+        print("%s : %f sec" % (fixed_words, time.time() - start_time))
         return fixed_words
 
 
