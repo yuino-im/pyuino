@@ -159,17 +159,19 @@ class YuinoDictionary:
         return y.logits[:, -1, :]
 
     def build_word_tree(self, in_text):
-        word_set = [[] for _ in range(len(in_text))]
-        for i in range(len(in_text)):
+        in_len = len(in_text) + 1
+        nodes_set = [[] for _ in range(in_len)]
+        nodes_set[0] = ["[CLS]"]
+        for i in range(in_len):
             for prefix in self._trie.prefixes(in_text[i:]):
-                word_set[i].append(prefix)
-        return word_set
+                nodes_set[i + len(prefix)].append(prefix)
+        return nodes_set
 
     def gets(self, ym):
         return list(set([wid[0] for wid in self._trie[ym]]))
 
     def loss(self, y, y_hat):
-        return self._loss_func(y, y_hat)
+        return self._loss_func(y, y_hat).item()
 
     def surface(self, wid):
         return self._words[wid].surface

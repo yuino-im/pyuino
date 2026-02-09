@@ -2,7 +2,6 @@ import argparse
 from .converter import YuinoConverter
 
 
-
 def toy_run():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-m', '--model_path', help='Yuino Model Path', default="YuinoLM")
@@ -15,4 +14,3 @@ def toy_run():
         kana = input("かな > ")
         rsp = converter.convert(kana)
         print("漢字: " + rsp)
-
