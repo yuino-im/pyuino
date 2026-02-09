@@ -9,7 +9,6 @@ class YuinoConverter:
     def convert(self, text):
         start_time = time.time()
         word_tree = self._dict.build_word_tree(text)
-        print(word_tree)
 
         candidates = []
         for i, yomi_s in enumerate(word_tree):
