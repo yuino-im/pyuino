@@ -162,18 +162,12 @@ class YuinoDicPosId:
 
 
 class YuinoDictionary:
-    def __init__(self, model_path: Optional[str]=None, device="cpu", num_bits=32):
-        self._dict_path = model_path
+    def __init__(self, model_path: Optional[str]=None, num_bits=32):
         self._pos_id = YuinoDicPosId()
         self._pos_emb = torch.eye(self._pos_id.pos_id_size)
-        self._shifts = torch.arange(num_bits - 1, -1, -1)
         self._logger = getLogger("YuinoDictionary")
 
-        self._device = device
-        self._model = YuinoModel.from_pretrained(model_path).to(self._device)
-        self._loss_func = torch.nn.BCEWithLogitsLoss()
-
-        dict_file_path = os.path.join(self._dict_path, "yuino_dict.pb")
+        dict_file_path = os.path.join(model_path, "yuino_dict.pb")
         yuino_words = YuinoDic()
         with open(dict_file_path, "rb") as f:
             data = f.read()
@@ -195,7 +189,7 @@ class YuinoDictionary:
 
         # build trie
         self._trie = marisa_trie.RecordTrie("<L", zip(trie_key, trie_val))
-        self._first_embed = self.predict([self.bos_id])
+        self._shifts = torch.arange(num_bits - 1, -1, -1)
 
     @property
     def pos_id_size(self):
@@ -204,24 +198,6 @@ class YuinoDictionary:
     @property
     def bos_id(self):
         return 0
-
-    @property
-    def first_embed(self):
-        return self._first_embed
-
-    def embed(self, words: List[int]):
-        wt = []
-        for wid in words:
-            w_vec = (self._words[wid].vector >> self._shifts) & 1
-            p_vec = (self._pos_vec[self.pos(wid)] >> self._shifts) & 1
-            emb = torch.cat([w_vec, p_vec]).float()
-            wt.append(emb.unsqueeze(0))
-        return torch.cat(wt).unsqueeze(0).to(self._device)
-
-    def predict(self, words: List[int]):
-        wt = self.embed(words)
-        y = self._model(inputs_embeds=wt)
-        return y.logits[:, -1, :]
 
     def build_word_tree(self, in_text):
         in_len = len(in_text) + 1
@@ -235,12 +211,17 @@ class YuinoDictionary:
     def gets(self, ym):
         return list(set([wid[0] for wid in self._trie[ym]]))
 
-    def loss(self, y, y_hat):
-        return self._loss_func(y, y_hat).item()
-
     def surface(self, wid):
         return self._words[wid].surface
 
     def pos(self, wid):
         return self._words[wid].pos
 
+    def embed(self, words: List[int]):
+        wt = []
+        for wid in words:
+            w_vec = (self._words[wid].vector >> self._shifts) & 1
+            p_vec = (self._pos_vec[self.pos(wid)] >> self._shifts) & 1
+            emb = torch.cat([w_vec, p_vec]).float()
+            wt.append(emb.unsqueeze(0))
+        return torch.cat(wt).unsqueeze(0)
