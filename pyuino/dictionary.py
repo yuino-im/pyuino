@@ -18,6 +18,71 @@ def _get_tqdm_bar(file_path):
     return bar
 
 
+def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer):
+    logger = getLogger("YuinoDictionaryBuilder")
+    dic_csv_files = [
+        "small_lex.csv",
+        "core_lex.csv",
+        "notcore_lex.csv"
+    ]
+    model = YuinoModel.from_pretrained("YuinoLM")
+    pos_id = YuinoDicPosId()
+    anya_words = YuinoDic()
+    poss = []
+    words = []
+
+    embeddings = teacher_model.get_input_embeddings()
+
+    # reg pos_id
+    for i in range(pos_id.pos_id_size):
+        pos = YuinoPos()
+        pos.id = i
+        pos.vec = model.get_pos_id(torch.tensor(i))
+        poss.append(pos)
+    anya_words.poss.extend(poss)
+
+    # add BOS (id=0)
+    word = YuinoWord()
+    word.surface = "[CLS]"
+    word.read = "[CLS]"
+    word.pos = pos_id.bos_id
+    vec = model.get_uint_id(embeddings(teacher_tokenizer.encode("[CLS]", add_special_tokens=False, return_tensors="pt")))
+    word.vector = vec
+    words.append(word)
+
+    for csv_file in dic_csv_files:
+        read_file_path = os.path.join("./dict", csv_file)
+        logger.info(" reading... %s" % read_file_path)
+        bar = _get_tqdm_bar(read_file_path)
+        with open(read_file_path) as f:
+            reader = csv.reader(f, delimiter=",")
+            try:
+                for line in reader:
+                    try:
+                        word = YuinoWord()
+                        word.surface = line[0]
+                        word.read = jaconv.kata2hira(line[11])
+                        word.pos = pos_id.get_pos_id((line[5], line[6], line[7], line[8]))
+                        e = embeddings(teacher_tokenizer.encode(line[0], return_tensors="pt", add_special_tokens=False))
+                        word.vector = model.get_uint_id(torch.mean(e, dim=1).unsqueeze(0))
+
+                        words.append(word)
+
+                    except RuntimeError as e:
+                        print(word.surface, " : not vectorized  ", e)
+
+                    bar.update(1)
+
+            except UnicodeDecodeError as e:
+                logger.warning(e)
+
+    write_file_path = os.path.join("./YuinoLM", "yuino_dict.pb")
+    logger.info("all read OK! and writing -> %s" % write_file_path)
+    anya_words.words.extend(words)
+    with open(write_file_path, "wb") as f:
+        f.write(anya_words.SerializeToString())
+
+
 class YuinoDicPosId:
     def __init__(self):
         self._pos_ids = [
@@ -179,67 +244,3 @@ class YuinoDictionary:
     def pos(self, wid):
         return self._words[wid].pos
 
-    @staticmethod
-    def build(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer):
-        logger = getLogger("YuinoDictionaryBuilder")
-        dic_csv_files = [
-            "small_lex.csv",
-            "core_lex.csv",
-            "notcore_lex.csv"
-        ]
-        model = YuinoModel.from_pretrained("YuinoLM")
-        pos_id = YuinoDicPosId()
-        anya_words = YuinoDic()
-        poss = []
-        words = []
-
-        embeddings = teacher_model.get_input_embeddings()
-
-        # reg pos_id
-        for i in range(pos_id.pos_id_size):
-            pos = YuinoPos()
-            pos.id = i
-            pos.vec = model.get_pos_id(torch.tensor(i))
-            poss.append(pos)
-        anya_words.poss.extend(poss)
-
-        # add BOS (id=0)
-        word = YuinoWord()
-        word.surface = "[CLS]"
-        word.read = "[CLS]"
-        word.pos = pos_id.bos_id
-        vec = model.get_uint_id(embeddings(teacher_tokenizer.encode("[CLS]", add_special_tokens=False, return_tensors="pt")))
-        word.vector = vec
-        words.append(word)
-
-        for csv_file in dic_csv_files:
-            read_file_path = os.path.join("./dict", csv_file)
-            logger.info(" reading... %s" % read_file_path)
-            bar = _get_tqdm_bar(read_file_path)
-            with open(read_file_path) as f:
-                reader = csv.reader(f, delimiter=",")
-                try:
-                    for line in reader:
-                        try:
-                            word = YuinoWord()
-                            word.surface = line[0]
-                            word.read = jaconv.kata2hira(line[11])
-                            word.pos = pos_id.get_pos_id((line[5], line[6], line[7], line[8]))
-                            e = embeddings(teacher_tokenizer.encode(line[0], return_tensors="pt", add_special_tokens=False))
-                            word.vector = model.get_uint_id(torch.mean(e, dim=1).unsqueeze(0))
-
-                            words.append(word)
-
-                        except RuntimeError as e:
-                            print(word.surface, " : not vectorized  ", e)
-
-                        bar.update(1)
-
-                except UnicodeDecodeError as e:
-                    logger.warning(e)
-
-        write_file_path = os.path.join("./YuinoLM", "yuino_dict.pb")
-        logger.info("all read OK! and writing -> %s" % write_file_path)
-        anya_words.words.extend(words)
-        with open(write_file_path, "wb") as f:
-            f.write(anya_words.SerializeToString())
