@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/pyconlai
+      url: https://pypi.org/p/pyuino
     permissions:
       id-token: write
 
