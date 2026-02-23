@@ -1,7 +1,7 @@
 import argparse
 import json
 from transformers import TrainingArguments, AutoModel, AutoTokenizer, Qwen3Config
-from pyuino import YuinoModel, YuinoDictionary, YuinoTrainer
+from pyuino import YuinoModel, YuinoTrainer, build_dictionary
 
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -9,10 +9,12 @@ base_model_path = "line-corporation/line-distilbert-base-japanese"
 
 model_id = "YuinoLM"
 
-def build_dictionary():
+
+def build_dict():
     model = AutoModel.from_pretrained(base_model_path)
     tokenizer = AutoTokenizer.from_pretrained(base_model_path, trust_remote_code=True)
-    YuinoDictionary.build(model, tokenizer)
+    build_dictionary(model, tokenizer)
+
 
 def train():
     parser = argparse.ArgumentParser(description='yuinotrain')
@@ -46,7 +48,7 @@ def train():
             m_config = Qwen3Config.from_dict(m_config)
             model = YuinoModel(m_config)
     else:
-        model = YuinoModel.from_pretrained("YuinoLM")
+        model = YuinoModel.from_pretrained(model_id)
 
     tcr_model = AutoModel.from_pretrained(base_model_path)
     tcr_tokenizer = AutoTokenizer.from_pretrained(base_model_path, trust_remote_code=True)
@@ -59,7 +61,7 @@ def train():
 def main():
     train()
     #convert_onnx()
-    build_dictionary()
+    build_dict()
 
 
 if __name__ == "__main__":

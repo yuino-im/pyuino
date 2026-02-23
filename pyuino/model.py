@@ -6,6 +6,39 @@ from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutpu
 from transformers.cache_utils import Cache
 
 
+class YuinoOnnx(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+        self.num_layers = model.config.num_hidden_layers
+
+    def forward(self, inputs_embeds, attention_mask, position_ids, *past_key_values_flat):
+        past_key_values = None
+        if len(past_key_values_flat) > 0:
+            past_key_values = []
+            for i in range(self.num_layers):
+                k = past_key_values_flat[i * 2]
+                v = past_key_values_flat[i * 2 + 1]
+                past_key_values.append((k, v))
+            past_key_values = tuple(past_key_values)
+
+        outputs = self.model(
+            inputs_embeds=inputs_embeds,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            use_cache=True,
+            return_dict=True
+        )
+
+        present_key_values_flat = []
+        for k, v in outputs.past_key_values:
+            present_key_values_flat.append(k)
+            present_key_values_flat.append(v)
+
+        return outputs.logits, *present_key_values_flat
+
+
 class YuinoModel(Qwen3PreTrainedModel):
     word_emb_size = 32
     pos_ids_size = 57
