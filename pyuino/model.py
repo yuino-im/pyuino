@@ -111,11 +111,9 @@ class YuinoModel(Qwen3PreTrainedModel):
     def get_uint_id(self, labels: torch.Tensor) -> int:
         y = self.sigmoid(self.word_enc(labels))
         y = torch.where((y > 0.5), 1, 0)
-        powers = 2 ** torch.arange(y.size(2) - 1, -1, -1)
-        return (y * powers).sum().item()
+        return sum(x * (1 << i) for i, x in enumerate(reversed(y.squeeze().squeeze().tolist())))
 
     def get_pos_id(self, inputs_poss: torch.LongTensor) -> int:
         y = self.sigmoid(self.pos_emb(inputs_poss))
         y = torch.where((y > 0.5), 1, 0)
-        powers = 2 ** torch.arange(y.size(0) - 1, -1, -1)
-        return (y * powers).sum().item()
+        return sum(x * (1 << i) for i, x in enumerate(reversed(y.tolist())))
