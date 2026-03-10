@@ -59,7 +59,7 @@ class YuinoDatasets(Dataset):
         p_ary.append(self._pos_ids.eos_id)
 
         return {
-            "labels": torch.tensor(l_ary).detach(),
+            "labels": torch.tensor(l_ary, dtype=torch.bfloat16).detach(),
             "inputs_poss": torch.tensor(p_ary).detach(),
             "attention_mask": torch.tensor([1 for _ in range(len(p_ary))]).detach(),
         }

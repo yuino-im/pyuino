@@ -3,13 +3,13 @@ syntax = "proto3";
 message YuinoWord {
   string surface = 1;
   string read = 2;
-  uint32 vector = 3;
+  uint64 vector = 3;
   uint32 pos = 4;
 }
 
 message YuinoPos {
   uint32 id = 1;
-  uint32 vec = 2;
+  uint64 vec = 2;
 }
 
 message YuinoDic {

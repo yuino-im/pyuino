@@ -28,7 +28,7 @@ def train():
     training_args = TrainingArguments(
         output_dir="YuinoLM",
         eval_strategy="epoch",
-        learning_rate=1e-5,
+        learning_rate=1e-4,
         weight_decay=0.01,
         push_to_hub=False,
         logging_steps=100,
@@ -37,9 +37,11 @@ def train():
         save_total_limit=2,
         num_train_epochs=args.epoch,
         lr_scheduler_type="cosine",
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
+        per_device_train_batch_size=32,
+        per_device_eval_batch_size=32,
+        gradient_accumulation_steps=32,
         dataloader_num_workers=8,
+        bf16=True,
     )
 
     if args.init_train:

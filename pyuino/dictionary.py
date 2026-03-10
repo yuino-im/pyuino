@@ -162,7 +162,7 @@ class YuinoDicPosId:
 
 
 class YuinoDictionary:
-    def __init__(self, model_path: Optional[str]=None, num_bits=32):
+    def __init__(self, model_path: Optional[str]=None, num_bits=64):
         self._pos_id = YuinoDicPosId()
         self._pos_emb = torch.eye(self._pos_id.pos_id_size)
         self._logger = getLogger("YuinoDictionary")
