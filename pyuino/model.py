@@ -41,7 +41,7 @@ class YuinoOnnx(nn.Module):
 
 class YuinoModel(Qwen3PreTrainedModel):
     word_emb_size = 64
-    pos_ids_size = 57
+    pos_ids_size = 1600
     label_emb_size = 768
 
     def __init__(self, config: Qwen3Config):
@@ -103,9 +103,9 @@ class YuinoModel(Qwen3PreTrainedModel):
         return CausalLMOutputWithPast(
             loss=loss,
             logits=logits,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.last_hidden_state,
-            attentions=outputs.attentions,
+            past_key_values=outputs.past_key_values if use_cache else None,
+            hidden_states=None,
+            attentions=None,
         )
 
     def get_uint_id(self, labels: torch.Tensor) -> int:

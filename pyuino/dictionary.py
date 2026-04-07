@@ -3,6 +3,7 @@ import csv
 import jaconv
 import torch
 import marisa_trie
+from sudachipy import dictionary
 from typing import Optional, List
 from logging import getLogger
 from tqdm import tqdm
@@ -62,7 +63,7 @@ def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer)
                         word = YuinoWord()
                         word.surface = line[0]
                         word.read = jaconv.kata2hira(line[11])
-                        word.pos = pos_id.get_pos_id((line[5], line[6], line[7], line[8]))
+                        word.pos = pos_id.get_pos_id((line[5], line[6], line[7], line[8], line[9], line[10]))
                         e = embeddings(teacher_tokenizer.encode(line[0], return_tensors="pt", add_special_tokens=False))
                         word.vector = model.get_uint_id(torch.mean(e, dim=1).unsqueeze(0))
 
@@ -85,65 +86,17 @@ def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer)
 
 class YuinoDicPosId:
     def __init__(self):
-        self._pos_ids = [
-            "PAD",
-            "名詞.普通名詞.一般.*",
-            "名詞.普通名詞.サ変可能.*",
-            "名詞.普通名詞.形状詞可能.*",
-            "名詞.普通名詞.サ変形状詞可能.*",
-            "名詞.普通名詞.副詞可能.*",
-            "名詞.普通名詞.助数詞可能.*",
-            "名詞.固有名詞.一般.*",
-            "名詞.固有名詞.人名.一般",
-            "名詞.固有名詞.人名.姓",
-            "名詞.固有名詞.人名.名",
-            "名詞.固有名詞.地名.一般",
-            "名詞.固有名詞.地名.国",
-            "名詞.数詞.*.*",
-            "名詞.助動詞語幹.*.*",
-            "代名詞.*.*.*",
-            "形状詞.一般.*.*",
-            "形状詞.タリ.*.*",
-            "形状詞.助動詞語幹.*.*",
-            "連体詞.*.*.*",
-            "副詞.*.*.*",
-            "接続詞.*.*.*",
-            "感動詞.一般.*.*",
-            "感動詞.フィラー.*.*",
-            "動詞.一般.*.*",
-            "動詞.非自立可能.*.*",
-            "形容詞.一般.*.*",
-            "形容詞.非自立可能.*.*",
-            "助動詞.*.*.*",
-            "助詞.格助詞.*.*",
-            "助詞.副助詞.*.*",
-            "助詞.係助詞.*.*",
-            "助詞.接続助詞.*.*",
-            "助詞.終助詞.*.*",
-            "助詞.準体助詞.*.*",
-            "接頭辞.*.*.*",
-            "接尾辞.名詞的.一般.*",
-            "接尾辞.名詞的.サ変可能.*",
-            "接尾辞.名詞的.形状詞可能.*",
-            "接尾辞.名詞的.副詞可能.*",
-            "接尾辞.名詞的.助数詞.*",
-            "接尾辞.形状詞的.*.*",
-            "接尾辞.動詞的.*.*",
-            "接尾辞.形容詞的.*.*",
-            "記号.一般.*.*",
-            "記号.文字.*.*",
-            "補助記号.一般.*.*",
-            "補助記号.句点.*.*",
-            "補助記号.読点.*.*",
-            "補助記号.括弧開.*.*",
-            "補助記号.括弧閉.*.*",
-            "補助記号.ＡＡ.一般.*",
-            "補助記号.ＡＡ.顔文字.*",
-            "空白.*.*.*",
-            "BOS.*.*.*",
-            "EOS.*.*.*",
-            "UNK.*.*.*"
-        ]
+        self._pos_ids = ["PAD"]
+
+        sdict = dictionary.Dictionary(dict="full")
+        conj_form = sdict.pos_matcher(lambda x: x[0] != "@")
+        for i, pos in enumerate(conj_form):
+            self._pos_ids.append(".".join(pos))
+
+        # tail add
+        self._pos_ids.append("BOS.*.*.*.*.*")
+        self._pos_ids.append("EOS.*.*.*.*.*")
+        self._pos_ids.append("UNK.*.*.*.*.*")
 
     @property
     def pos_id_size(self):
@@ -151,14 +104,14 @@ class YuinoDicPosId:
 
     @property
     def bos_id(self):
-        return self.get_pos_id(("BOS", "*", "*", "*"))
+        return self.get_pos_id(("BOS", "*", "*", "*", "*", "*"))
 
     @property
     def eos_id(self):
-        return self.get_pos_id(("EOS", "*", "*", "*"))
+        return self.get_pos_id(("EOS", "*", "*", "*", "*", "*"))
 
     def get_pos_id(self, inputs: tuple) -> int:
-        return self._pos_ids.index(inputs[0] + "." + inputs[1] + "." + inputs[2] + "." + inputs[3])
+        return self._pos_ids.index(inputs[0] + "." + inputs[1] + "." + inputs[2] + "." + inputs[3] + "." + inputs[4] + "." + inputs[5])
 
 
 class YuinoDictionary:
