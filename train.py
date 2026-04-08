@@ -22,7 +22,7 @@ def train():
     parser.add_argument('-c', '--conf', default="./YuinoLM/config.json")
     parser.add_argument('-e', '--epoch', type=int, default=1)
     parser.add_argument('--init_train', action='store_true')
-    parser.add_argument('--data_len_per', type=float, default=0.01)
+    parser.add_argument('--data_len_per', type=float, default=0.1)
     args = parser.parse_args()
 
     training_args = TrainingArguments(
@@ -32,14 +32,16 @@ def train():
         weight_decay=0.01,
         push_to_hub=False,
         logging_steps=100,
-        eval_steps=1000,
-        save_steps=1000,
+        eval_steps=100,
+        save_steps=100,
         save_total_limit=2,
         num_train_epochs=args.epoch,
         lr_scheduler_type="cosine",
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
-        dataloader_num_workers=8,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        gradient_accumulation_steps=16,
+        dataloader_num_workers=4,
+        bf16=True,
     )
 
     if args.init_train:
