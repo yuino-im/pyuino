@@ -40,8 +40,8 @@ class YuinoOnnx(nn.Module):
 
 
 class YuinoModel(Qwen3PreTrainedModel):
-    word_emb_size = 32
-    pos_ids_size = 57
+    word_emb_size = 64
+    pos_ids_size = 1600
     label_emb_size = 768
 
     def __init__(self, config: Qwen3Config):
@@ -68,9 +68,6 @@ class YuinoModel(Qwen3PreTrainedModel):
             cache_position: Optional[torch.LongTensor] = None,
             **kwargs,
     ) -> CausalLMOutputWithPast:
-
-        if use_cache is None:
-            use_cache = self.config.use_cache and not self.training
 
         if labels is not None:
             x_in = self.sigmoid(self.word_enc(labels))
@@ -114,11 +111,9 @@ class YuinoModel(Qwen3PreTrainedModel):
     def get_uint_id(self, labels: torch.Tensor) -> int:
         y = self.sigmoid(self.word_enc(labels))
         y = torch.where((y > 0.5), 1, 0)
-        powers = 2 ** torch.arange(y.size(2) - 1, -1, -1)
-        return (y * powers).sum().item()
+        return sum(x * (1 << i) for i, x in enumerate(reversed(y.squeeze().squeeze().tolist())))
 
     def get_pos_id(self, inputs_poss: torch.LongTensor) -> int:
         y = self.sigmoid(self.pos_emb(inputs_poss))
         y = torch.where((y > 0.5), 1, 0)
-        powers = 2 ** torch.arange(y.size(0) - 1, -1, -1)
-        return (y * powers).sum().item()
+        return sum(x * (1 << i) for i, x in enumerate(reversed(y.tolist())))

@@ -37,11 +37,12 @@ def train():
         save_total_limit=2,
         num_train_epochs=args.epoch,
         lr_scheduler_type="cosine",
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=16,
+        per_device_train_batch_size=128,
+        per_device_eval_batch_size=128,
         gradient_accumulation_steps=16,
         dataloader_num_workers=4,
         bf16=True,
+        remove_unused_columns=False,
     )
 
     if args.init_train:
@@ -51,6 +52,7 @@ def train():
             model = YuinoModel(m_config)
     else:
         model = YuinoModel.from_pretrained(model_id)
+    model.config.use_cache = False
 
     tcr_model = AutoModel.from_pretrained(base_model_path)
     tcr_tokenizer = AutoTokenizer.from_pretrained(base_model_path, trust_remote_code=True)
@@ -61,7 +63,7 @@ def train():
 
 
 def main():
-    train()
+    #train()
     #convert_onnx()
     build_dict()
 
