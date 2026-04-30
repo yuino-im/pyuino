@@ -41,7 +41,7 @@ class YuinoOnnx(nn.Module):
 
 class YuinoModel(Qwen3PreTrainedModel):
     word_emb_size = 32
-    pos_ids_size = 57
+    pos_ids_size = 1600
     label_emb_size = 768
 
     def __init__(self, config: Qwen3Config):
@@ -51,7 +51,7 @@ class YuinoModel(Qwen3PreTrainedModel):
         self.sigmoid = nn.Sigmoid()
 
         self.word_enc = nn.Linear(self.label_emb_size, self.word_emb_size)
-        self.pos_emb = nn.Embedding(self.pos_ids_size, self.word_emb_size)
+        self.pos_emb = nn.Embedding(self.pos_ids_size, self.word_emb_size, dtype=config.dtype)
         self.lm_in = nn.Linear((self.word_emb_size * 2), config.hidden_size, bias=False)
         self.lm_out = nn.Linear(config.hidden_size, (self.word_emb_size * 2), bias=False)
         self.post_init()
@@ -71,9 +71,9 @@ class YuinoModel(Qwen3PreTrainedModel):
 
         if labels is not None:
             x_in = self.sigmoid(self.word_enc(labels))
-            x_in = torch.where((x_in > 0.5), 1., 0.)
+            x_in = torch.where((x_in > 0.5), 1., 0.).to(x_in.dtype)
             input_p_embs = self.sigmoid(self.pos_emb(inputs_poss))
-            input_p_embs = torch.where((input_p_embs > 0.5), 1., 0.)
+            input_p_embs = torch.where((input_p_embs > 0.5), 1., 0.).to(input_p_embs.dtype)
             inputs_embeds = torch.cat((x_in, input_p_embs), dim=2)
 
         inputs_embeds_in = self.lm_in(inputs_embeds)
@@ -95,7 +95,7 @@ class YuinoModel(Qwen3PreTrainedModel):
         if labels is not None:
             # get loss for Kana-Kanji conversion
             shift_emb_labels = inputs_embeds[:, 1:].contiguous()
-            emp_emb_labels = torch.zeros((inputs_embeds.shape[0], 1, inputs_embeds.shape[2]), dtype=torch.float, device=inputs_embeds.device)
+            emp_emb_labels = torch.zeros((inputs_embeds.shape[0], 1, inputs_embeds.shape[2]), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
             shift_emb_labels = torch.cat((shift_emb_labels, emp_emb_labels), dim=1)
             loss = self.loss_func(logits, shift_emb_labels)
             loss = loss.view(loss.size(0), -1).sum(dim=1).mean()
