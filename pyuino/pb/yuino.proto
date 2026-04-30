@@ -5,6 +5,7 @@ message YuinoWord {
   string read = 2;
   uint32 vector = 3;
   uint32 pos = 4;
+  int32 cost = 5;
 }
 
 message YuinoPos {
