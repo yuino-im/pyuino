@@ -86,17 +86,11 @@ def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer)
 
 class YuinoDicPosId:
     def __init__(self, pos_id_file="./YuinoLM/pos_id.csv"):
-        self._pos_ids = ["PAD"]
-
+        self._pos_ids = []
         with open(pos_id_file, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             for row in reader:
                 self._pos_ids.append(row[0] + "." + row[1] + "." + row[2] + "." + row[3] + "." + row[4] + "." + row[5])
-
-        # tail add
-        self._pos_ids.append("BOS.*.*.*.*.*")
-        self._pos_ids.append("EOS.*.*.*.*.*")
-        self._pos_ids.append("UNK.*.*.*.*.*")
 
     @property
     def pos_id_size(self):

@@ -48,12 +48,14 @@ class YuinoModel(Qwen3PreTrainedModel):
         super().__init__(config)
         self.model = Qwen3Model(config)
         self.loss_func = nn.BCEWithLogitsLoss(reduction="none")
+        self.p_loss_func = nn.CrossEntropyLoss(ignore_index=config.pad_token_id)
         self.sigmoid = nn.Sigmoid()
 
         self.word_enc = nn.Linear(self.label_emb_size, self.word_emb_size)
         self.pos_emb = nn.Embedding(self.pos_ids_size, self.word_emb_size, dtype=config.dtype)
         self.lm_in = nn.Linear((self.word_emb_size * 2), config.hidden_size, bias=False)
         self.lm_out = nn.Linear(config.hidden_size, (self.word_emb_size * 2), bias=False)
+        self.pos_head = nn.Linear(self.word_emb_size, self.pos_ids_size, bias=False)
         self.post_init()
 
     def forward(
@@ -93,12 +95,25 @@ class YuinoModel(Qwen3PreTrainedModel):
 
         loss = None
         if labels is not None:
-            # get loss for Kana-Kanji conversion
             shift_emb_labels = inputs_embeds[:, 1:].contiguous()
             emp_emb_labels = torch.zeros((inputs_embeds.shape[0], 1, inputs_embeds.shape[2]), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
             shift_emb_labels = torch.cat((shift_emb_labels, emp_emb_labels), dim=1)
-            loss = self.loss_func(logits, shift_emb_labels)
-            loss = loss.view(loss.size(0), -1).sum(dim=1).mean()
+            
+            # get loss word emb
+            loss_w = self.loss_func(logits[:,:,:self.word_emb_size], shift_emb_labels[:,:,:self.word_emb_size])
+            loss_w = loss_w.view(loss_w.size(0), -1).sum(dim=1).mean()
+
+            # get loss pos emb
+            loss_p1 = self.loss_func(logits[:,:,self.word_emb_size:], shift_emb_labels[:,:,self.word_emb_size:])
+            loss_p1 = loss_p1.view(loss_p1.size(0), -1).sum(dim=1).mean()
+            pos_logits = self.pos_head(logits[:,:,self.word_emb_size:])
+            shift_pos_labels = inputs_poss[:, 1:].contiguous()
+            emp_pos_labels = torch.zeros((inputs_poss.shape[0], 1), dtype=torch.long, device=inputs_poss.device)
+            shift_pos_labels = torch.cat((shift_pos_labels, emp_pos_labels), dim=1)
+            loss_p2 = self.p_loss_func(pos_logits.view(-1, self.pos_ids_size), shift_pos_labels.view(-1))
+            loss_p = loss_p1 * loss_p2
+
+            loss = loss_w + loss_p
 
         return CausalLMOutputWithPast(
             loss=loss,
