@@ -7,6 +7,9 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 base_model_path = "line-corporation/line-distilbert-base-japanese"
 
+# for Debug
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 model_id = "YuinoLM"
 
 
@@ -22,7 +25,7 @@ def train():
     parser.add_argument('-c', '--conf', default="./YuinoLM/config.json")
     parser.add_argument('-e', '--epoch', type=int, default=1)
     parser.add_argument('--init_train', action='store_true')
-    parser.add_argument('--data_len_per', type=float, default=0.01)
+    parser.add_argument('--data_len_per', type=float, default=0.05)
     args = parser.parse_args()
 
     training_args = TrainingArguments(
