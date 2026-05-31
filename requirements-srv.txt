@@ -6,3 +6,4 @@ datasets
 sudachipy
 jaconv
 marisa_trie
+fasttext

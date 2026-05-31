@@ -7,7 +7,7 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 # for Debug
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 model_id = "YuinoLM"
 
@@ -59,7 +59,7 @@ def train():
 
 
 def main():
-    #train()
+    train()
     build_dict()
 
 
