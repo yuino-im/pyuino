@@ -1,9 +1,10 @@
 import os
 import torch
+import fasttext
 from typing import Tuple
-from collections import OrderedDict
 from torch.utils.data.dataset import Subset
-from transformers import Trainer, TrainingArguments, AutoModel, AutoTokenizer
+from transformers import Trainer, TrainingArguments
+from torch import nn
 from .model import YuinoModel
 from .dataset import YuinoDatasets
 from .dictionary import YuinoDicPosId
@@ -11,39 +12,12 @@ from .dictionary import YuinoDicPosId
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class YuinoCollator:
-    def __init__(self, teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer, cache_size: int = 2048):
-        teacher_model.eval()
-        self._embeddings = teacher_model.get_input_embeddings()
-        self._tokenizer = teacher_tokenizer
+    def __init__(self, fs_model_path="./model.bin"):
         self._pos_ids = YuinoDicPosId()
-        self._cache_size = cache_size
-        self._surface_cache = OrderedDict()
-
-        with torch.no_grad():
-            bos_ids = self._tokenizer.encode("[CLS]", add_special_tokens=False, return_tensors="pt")
-            eos_ids = self._tokenizer.encode("[SEP]", add_special_tokens=False, return_tensors="pt")
-            self._bos_emb = self._embeddings(bos_ids).mean(dim=1).squeeze(0).to(dtype=torch.bfloat16).cpu()
-            self._eos_emb = self._embeddings(eos_ids).mean(dim=1).squeeze(0).to(dtype=torch.bfloat16).cpu()
-        del bos_ids, eos_ids
-
-    def _get_surface_embedding(self, surface: str) -> torch.Tensor:
-        cached = self._surface_cache.get(surface)
-        if cached is not None:
-            self._surface_cache.move_to_end(surface)
-            return cached
-
-        with torch.no_grad():
-            token_ids = self._tokenizer.encode(surface, add_special_tokens=False, return_tensors="pt")
-            emb = self._embeddings(token_ids).mean(dim=1).squeeze(0).to(dtype=torch.bfloat16).cpu()
-
-        self._surface_cache[surface] = emb
-        self._surface_cache.move_to_end(surface)
-
-        if len(self._surface_cache) > self._cache_size:
-            self._surface_cache.popitem(last=False)
-
-        del token_ids
-        return emb
+        self._ft_model = fasttext.load_model(fs_model_path)
+        self._sigmoid = nn.Sigmoid()
+        self._bos_emb = self.get_vector("__BOS")
+        self._eos_emb = self.get_vector("__EOS")
 
     @staticmethod
     def _parse_text(text: str) -> list[tuple[str, int]]:
@@ -63,6 +37,10 @@ class YuinoCollator:
 
         return pairs
 
+    def get_vector(self, input_text: str):
+        x = self._sigmoid(torch.tensor(self._ft_model[input_text], dtype=torch.bfloat16))
+        return torch.where((x > 0.5), 1., 0.).to(x.dtype)
+
     def __call__(self, batch):
         labels = []
         inputs_poss = []
@@ -75,14 +53,13 @@ class YuinoCollator:
             sample_pos_ids = [self._pos_ids.bos_id]
 
             for surface, pos_id in pairs:
-                emb = self._get_surface_embedding(surface)
-                sample_labels.append(emb)
+                sample_labels.append(self.get_vector(surface))
                 sample_pos_ids.append(pos_id)
 
             sample_labels.append(self._eos_emb)
             sample_pos_ids.append(self._pos_ids.eos_id)
 
-            labels.append(torch.stack(sample_labels, dim=0))
+            labels.append(torch.stack(sample_labels))
             inputs_poss.append(torch.tensor(sample_pos_ids, dtype=torch.long))
             attention_mask.append(torch.ones(len(sample_pos_ids), dtype=torch.long))
             del sample_labels, sample_pos_ids
@@ -100,8 +77,6 @@ class YuinoTrainer(Trainer):
     def __init__(
             self,
             model: YuinoModel,
-            teacher_model: AutoModel,
-            teacher_tokenizer: AutoTokenizer,
             training_args: TrainingArguments,
             data_cache_dir: str,
             data_len_per: float = 0.01,
@@ -113,7 +88,7 @@ class YuinoTrainer(Trainer):
         train_len = int(n_samples - (n_samples * valid_len_per))
         train_dataset = Subset(all_dataset, list(range(0, train_len)))
         valid_dataset = Subset(all_dataset, list(range(train_len, n_samples)))
-        data_collator = YuinoCollator(teacher_model, teacher_tokenizer)
+        data_collator = YuinoCollator()
 
         super(YuinoTrainer, self).__init__(
             model=model,
