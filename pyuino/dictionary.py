@@ -115,7 +115,8 @@ class YuinoDicPosId:
 
 class YuinoDictionary:
     def __init__(self, model_path: Optional[str]=None, num_bits=32):
-        self._pos_id = YuinoDicPosId()
+        pos_id_path = os.path.join(model_path, "pos_id.csv")
+        self._pos_id = YuinoDicPosId(pos_id_path)
         self._pos_emb = torch.eye(self._pos_id.pos_id_size)
         self._logger = getLogger("YuinoDictionary")
 

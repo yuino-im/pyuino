@@ -2,7 +2,6 @@ import argparse
 import json
 import socket
 import logging
-from .model import YuinoModel
 from .converter import YuinoConverter
 
 
@@ -43,7 +42,7 @@ class YuinoServer:
 
 def run():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-m', '--model', help='model path', default='YuinoLM')
+    arg_parser.add_argument('-m', '--model', help='model path', default='./YuinoLM')
     arg_parser.add_argument('-p', '--port', help='server port number', default=30055)
     args = arg_parser.parse_args()
 

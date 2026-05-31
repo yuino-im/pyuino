@@ -72,8 +72,6 @@ class YuinoModel(Qwen3PreTrainedModel):
     ) -> CausalLMOutputWithPast:
 
         if labels is not None:
-            #x_in = self.sigmoid(self.word_enc(labels))
-            #x_in = torch.where((x_in > 0.5), 1., 0.).to(x_in.dtype)
             input_p_embs = self.sigmoid(self.pos_emb(inputs_poss))
             input_p_embs = torch.where((input_p_embs > 0.5), 1., 0.).to(input_p_embs.dtype)
             inputs_embeds = torch.cat((labels, input_p_embs), dim=2)
@@ -122,14 +120,6 @@ class YuinoModel(Qwen3PreTrainedModel):
             hidden_states=outputs.last_hidden_state,
             attentions=outputs.attentions,
         )
-
-    """
-    def get_uint_id(self, labels: torch.Tensor) -> int:
-        y = self.sigmoid(self.word_enc(labels))
-        y = torch.where((y > 0.5), 1, 0)
-        powers = 2 ** torch.arange(y.size(2) - 1, -1, -1)
-        return (y * powers).sum().item()
-    """
 
     def get_pos_id(self, inputs_poss: torch.LongTensor) -> int:
         y = self.sigmoid(self.pos_emb(inputs_poss))
