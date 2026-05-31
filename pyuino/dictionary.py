@@ -6,7 +6,8 @@ import marisa_trie
 from typing import Optional, List
 from logging import getLogger
 from tqdm import tqdm
-from transformers import AutoModel, AutoTokenizer
+import fasttext
+from torch import nn
 from .model import YuinoModel
 from .pb import YuinoWord, YuinoPos, YuinoDic
 
@@ -18,7 +19,16 @@ def _get_tqdm_bar(file_path):
     return bar
 
 
-def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer):
+def build_dictionary(fs_model_path="./model.bin"):
+    ft_model = fasttext.load_model(fs_model_path)
+    sigmoid = nn.Sigmoid()
+
+    def get_vector(input_text: str):
+        y = sigmoid(torch.tensor(ft_model[input_text], dtype=torch.bfloat16))
+        y = torch.where((y > 0.5), 1, 0)
+        powers = 2 ** torch.arange(y.size(0) - 1, -1, -1)
+        return (y * powers).sum().item()
+
     logger = getLogger("YuinoDictionaryBuilder")
     dic_csv_files = [
         "small_lex.csv",
@@ -30,8 +40,6 @@ def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer)
     anya_words = YuinoDic()
     poss = []
     words = []
-
-    embeddings = teacher_model.get_input_embeddings()
 
     # reg pos_id
     for i in range(pos_id.pos_id_size):
@@ -46,8 +54,7 @@ def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer)
     word.surface = "[CLS]"
     word.read = "[CLS]"
     word.pos = pos_id.bos_id
-    vec = model.get_uint_id(embeddings(teacher_tokenizer.encode("[CLS]", add_special_tokens=False, return_tensors="pt")))
-    word.vector = vec
+    word.vector = get_vector("__BOS")
     words.append(word)
 
     for csv_file in dic_csv_files:
@@ -64,9 +71,7 @@ def build_dictionary(teacher_model: AutoModel, teacher_tokenizer: AutoTokenizer)
                         word.read = jaconv.kata2hira(line[11])
                         word.pos = pos_id.get_pos_id((line[5], line[6], line[7], line[8], line[9], line[10]))
                         word.cost = int(line[3])
-                        e = embeddings(teacher_tokenizer.encode(line[0], return_tensors="pt", add_special_tokens=False))
-                        word.vector = model.get_uint_id(torch.mean(e, dim=1).unsqueeze(0))
-
+                        word.vector = get_vector(line[0])
                         words.append(word)
 
                     except RuntimeError as e:

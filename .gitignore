@@ -213,3 +213,9 @@ training_args.bin
 checkpoint-*/
 dataset/
 dict/
+
+# for Debug
+model.bin
+model.vec
+wiki_removed_doc_tag_with_segment.txt
+

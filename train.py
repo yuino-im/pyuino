@@ -1,22 +1,19 @@
 import argparse
 import json
-from transformers import TrainingArguments, AutoModel, AutoTokenizer, Qwen3Config
+from transformers import TrainingArguments, Qwen3Config
 from pyuino import YuinoModel, YuinoTrainer, build_dictionary
 
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
-base_model_path = "line-corporation/line-distilbert-base-japanese"
 
 # for Debug
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 model_id = "YuinoLM"
 
 
 def build_dict():
-    model = AutoModel.from_pretrained(base_model_path)
-    tokenizer = AutoTokenizer.from_pretrained(base_model_path, trust_remote_code=True)
-    build_dictionary(model, tokenizer)
+    build_dictionary()
 
 
 def train():
@@ -25,7 +22,7 @@ def train():
     parser.add_argument('-c', '--conf', default="./YuinoLM/config.json")
     parser.add_argument('-e', '--epoch', type=int, default=1)
     parser.add_argument('--init_train', action='store_true')
-    parser.add_argument('--data_len_per', type=float, default=0.05)
+    parser.add_argument('--data_len_per', type=float, default=0.02)
     args = parser.parse_args()
 
     training_args = TrainingArguments(
@@ -56,16 +53,13 @@ def train():
     else:
         model = YuinoModel.from_pretrained(model_id)
 
-    tcr_model = AutoModel.from_pretrained(base_model_path)
-    tcr_tokenizer = AutoTokenizer.from_pretrained(base_model_path, trust_remote_code=True)
-
-    trainer = YuinoTrainer(model, tcr_model, tcr_tokenizer, training_args, args.data_cache_dir, data_len_per=args.data_len_per)
+    trainer = YuinoTrainer(model, training_args, args.data_cache_dir, data_len_per=args.data_len_per)
     trainer.train()
     trainer.save_model()
 
 
 def main():
-    train()
+    #train()
     build_dict()
 
 
