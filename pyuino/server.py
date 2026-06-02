@@ -1,13 +1,16 @@
 import argparse
 import json
 import socket
-import logging
+from logging import basicConfig, getLogger, INFO
 from .converter import YuinoConverter
+
+formatter = '%(asctime)s [%(name)s] %(levelname)s :  %(message)s'
+basicConfig(level=INFO, format=formatter)
 
 
 class YuinoServer:
     def __init__(self, model_path: str, port: int = 30055, buffer: int = 1024):
-        self._logger = logging.getLogger('YuinoServer')
+        self._logger = getLogger('YuinoServer')
         self._s_addr = ("0.0.0.0", port)
         self._converter = YuinoConverter(model_path)
         self._buffer = buffer
@@ -17,9 +20,11 @@ class YuinoServer:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(self._s_addr)
             s.listen()
-            while True:
-                conn, addr = s.accept()
-                with conn:
+
+            conn, addr = s.accept()
+            self._logger.info(f"Connection established with {addr}")
+            with conn:
+                while True:
                     message_recv = conn.recv(self._buffer).decode('utf-8')
                     if message_recv:
                         message_resp = self._respond(message_recv)

@@ -1,11 +1,13 @@
 import time
 import torch
+from logging import getLogger
 from .model import YuinoModel
 from .dictionary import YuinoDictionary
 
 
 class YuinoConverter:
     def __init__(self, model_path: str, device="cpu"):
+        self._logger = getLogger('YuinoServer')
         self._dict = YuinoDictionary(model_path=model_path)
         self._model = YuinoModel.from_pretrained(model_path).to(device).eval()
         self._loss_func = torch.nn.BCEWithLogitsLoss()
@@ -24,8 +26,8 @@ class YuinoConverter:
                     candidates.append((0., [self._dict.bos_id], past_key_values),)
                     continue
 
-                min_cost = None
-                min_words = None
+                min_cost = 0.
+                min_words = []
                 min_past_key_values = None
                 for yomi in yomi_s:
                     # Predict the next word vector from the previous words
@@ -35,21 +37,21 @@ class YuinoConverter:
                     for wid in self._dict.gets(yomi):
                         embed = self._dict.embed([wid]).squeeze(0)
                         cost = self.loss(pred, embed) + pre_words[0]
-                        if min_cost is None or cost < min_cost:
+                        if min_cost == 0. or cost < min_cost:
                             min_cost = cost
                             min_words = pre_words[1] + [wid]
                             min_past_key_values = past_key_values
 
                 # fixed this index
                 candidates.append((min_cost, min_words, min_past_key_values))
-                print(min_cost, [self._dict.surface(wid) for wid in min_words])
+                self._logger.debug("%f %s" % (min_cost, str([self._dict.surface(wid) for wid in min_words])))
 
         fixed_words = ""
         for i, word in enumerate(candidates[-1][1]):
             if i != 0:
                 fixed_words += self._dict.surface(word)
 
-        print("%s : %f sec" % (fixed_words, time.time() - start_time))
+        self._logger.info("%s : %f sec" % (fixed_words, time.time() - start_time))
         return fixed_words
 
     def predict(self, wid: int, past_key_values):
