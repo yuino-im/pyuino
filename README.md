@@ -18,6 +18,7 @@ https://www.dropbox.com/scl/fo/03sverk4gsj3l8qmx9ltw/ACueNBsN8EwwSYP18v2a1lQ?rlk
 * config.json
 * model.safetensors
 * yuino_dict.pb
+* pos_id.csv
 
 ダウンロードしたファイルは `YuinoLM` 下に配置してください  
 
@@ -27,23 +28,12 @@ ToyBox は pyuino のデモアプリケーションです
 
 ```shell
 $ pyuino-toybox
---Yuino TOY-BOX--
-かな > はこねおんせんへようこそ
-0.5473639369010925 ['[CLS]', '羽']
-0.5501382946968079 ['[CLS]', '筐']
-0.6909381747245789 ['[CLS]', 'はこね']
-1.3568682670593262 ['[CLS]', 'はこね', 'お']
-1.3223243355751038 ['[CLS]', '筐', 'ネオン']
-1.4771115183830261 ['[CLS]', 'はこね', 'オンセ']
-0.6929624676704407 ['[CLS]', '箱根温泉']
-1.1179965436458588 ['[CLS]', '箱根温泉', 'へ']
-1.5004573464393616 ['[CLS]', '箱根温泉', 'へよ']
-1.525723159313202 ['[CLS]', '箱根温泉', 'へよう']
-1.8744302093982697 ['[CLS]', '箱根温泉', 'へ', '楊子']
-1.8722382485866547 ['[CLS]', '箱根温泉', 'へ', 'ようこそ']
-箱根温泉へようこそ : 0.990405 sec
-漢字: 箱根温泉へようこそ
+INFO:     Started server process [21290]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
 ```
+→ 起動後に http://localhost:8888 へアクセスするとライブ変換で遊べます。  
 
 ### サーバーの起動
 現在 IBus-Anya を利用することを想定します  

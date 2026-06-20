@@ -19,3 +19,6 @@ source = "vcs"
 
 [tool.hatch.metadata.hooks.requirements_txt]
 files = ["requirements.txt"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"toys/index.html" = "pyuino/index.html"

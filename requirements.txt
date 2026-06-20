@@ -13,3 +13,5 @@ fugashi
 unidic-lite
 deepspeed
 fasttext
+fastapi
+uvicorn
