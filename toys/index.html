@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pyuino TOY-BOX</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+        input {
+            padding: 8px;
+            font-size: 16px;
+            width: 400px;
+        }
+        .output-area {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f7f9fa;
+            border: 1px solid #e1e4e6;
+            border-radius: 4px;
+            min-height: 50px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>pyuino TOY-BOX</h2>
+
+    <input type="text" id="inputText" placeholder="ここに入力すると、サーバーで編集されて戻ってきます...">
+
+    <div class="output-area">
+        <div><strong>変換結果:</strong> <span id="outputText"></span></div>
+        <div><strong>文字数:</strong> <span id="textLength">0</span> 文字</div>
+    </div>
+
+    <script>
+        const inputElement = document.getElementById('inputText');
+        const outputElement = document.getElementById('outputText');
+        const lengthElement = document.getElementById('textLength');
+
+        inputElement.addEventListener('input', async function(event) {
+            const currentText = event.target.value;
+
+            try {
+                const response = await fetch(`/convert?text=${encodeURIComponent(currentText)}`);
+                const data = await response.json();
+
+                outputElement.textContent = data.converted_text;
+                lengthElement.textContent = data.length;
+
+            } catch (error) {
+                console.error("通信エラーが発生しました:", error);
+            }
+        });
+    </script>
+
+</body>
+</html>

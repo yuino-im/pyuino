@@ -13,6 +13,7 @@ RUN pip3 install --no-cache-dir torch --index-url https://download.pytorch.org/w
     pip3 install --no-cache-dir -r requirements.txt
 
 ADD pyuino ./pyuino
+ADD toys ./toys
 RUN pip install .
 
 # runner

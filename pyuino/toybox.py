@@ -1,22 +1,566 @@
 import argparse
+import uvicorn
+from typing import Optional
+from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse
 from .converter import YuinoConverter
+
+app = FastAPI()
+
+
+key_table = {
+    "romaji": {
+        "-" : "ー",
+        "a" : "あ",
+        "i" : "い",
+        "u" : "う",
+        "e" : "え",
+        "o" : "お",
+        "xa" : "ぁ",
+        "xi" : "ぃ",
+        "xu" : "ぅ",
+        "xe" : "ぇ",
+        "xo" : "ぉ",
+        "la" : "ぁ",
+        "li" : "ぃ",
+        "lu" : "ぅ",
+        "le" : "ぇ",
+        "lo" : "ぉ",
+        "wha" : "うぁ",
+        "whi" : "うぃ",
+        "whe" : "うぇ",
+        "who" : "うぉ",
+        "va" : "ヴぁ",
+        "vi" : "ヴぃ",
+        "vu" : "ヴ",
+        "ve" : "ヴぇ",
+        "vo" : "ヴぉ",
+        "ka" : "か",
+        "ki" : "き",
+        "ku" : "く",
+        "ke" : "け",
+        "ko" : "こ",
+        "lka" : "ヵ",
+        "lke" : "ヶ",
+        "xka" : "ヵ",
+        "xke" : "ヶ",
+        "ga" : "が",
+        "gi" : "ぎ",
+        "gu" : "ぐ",
+        "ge" : "げ",
+        "go" : "ご",
+        "kya" : "きゃ",
+        "kyi" : "きぃ",
+        "kyu" : "きゅ",
+        "kye" : "きぇ",
+        "kyo" : "きょ",
+        "kwa" : "くぁ",
+        "gya" : "ぎゃ",
+        "gyi" : "ぎぃ",
+        "gyu" : "ぎゅ",
+        "gye" : "ぎぇ",
+        "gyo" : "ぎょ",
+        "gwa" : "ぐぁ",
+        "sa" : "さ",
+        "si" : "し",
+        "su" : "す",
+        "se" : "せ",
+        "so" : "そ",
+        "za" : "ざ",
+        "zi" : "じ",
+        "zu" : "ず",
+        "ze" : "ぜ",
+        "zo" : "ぞ",
+        "sya" : "しゃ",
+        "syi" : "しぃ",
+        "syu" : "しゅ",
+        "sye" : "しぇ",
+        "syo" : "しょ",
+        "sha" : "しゃ",
+        "shi" : "し",
+        "shu" : "しゅ",
+        "she" : "しぇ",
+        "sho" : "しょ",
+        "zya" : "じゃ",
+        "zyi" : "じぃ",
+        "zyu" : "じゅ",
+        "zye" : "じぇ",
+        "zyo" : "じょ",
+        "ja" : "じゃ",
+        "jya" : "じゃ",
+        "ji" : "じ",
+        "jyi" : "じぃ",
+        "ju" : "じゅ",
+        "jyu" : "じゅ",
+        "je" : "じぇ",
+        "jye" : "じぇ",
+        "jo" : "じょ",
+        "jyo" : "じょ",
+        "ta" : "た",
+        "ti" : "ち",
+        "tu" : "つ",
+        "tsu" : "つ",
+        "te" : "て",
+        "to" : "と",
+        "da" : "だ",
+        "di" : "ぢ",
+        "du" : "づ",
+        "de" : "で",
+        "do" : "ど",
+        "xtu" : "っ",
+        "xtsu" : "っ",
+        "ltu" : "っ",
+        "ltsu" : "っ",
+        "tya" : "ちゃ",
+        "tyi" : "ちぃ",
+        "tyu" : "ちゅ",
+        "tye" : "ちぇ",
+        "tyo" : "ちょ",
+        "cya" : "ちゃ",
+        "cyi" : "ちぃ",
+        "cyu" : "ちゅ",
+        "cye" : "ちぇ",
+        "cyo" : "ちょ",
+        "cha" : "ちゃ",
+        "chi" : "ち",
+        "chu" : "ちゅ",
+        "che" : "ちぇ",
+        "cho" : "ちょ",
+        "dya" : "ぢゃ",
+        "dyi" : "ぢぃ",
+        "dyu" : "ぢゅ",
+        "dye" : "ぢぇ",
+        "dyo" : "ぢょ",
+        "tsa" : "つぁ",
+        "tsi" : "つぃ",
+        "tse" : "つぇ",
+        "tso" : "つぉ",
+        "tha" : "てゃ",
+        "thi" : "てぃ",
+        "thu" : "てゅ",
+        "the" : "てぇ",
+        "tho" : "てょ",
+        "twu" : "とぅ",
+        "dha" : "でゃ",
+        "dhi" : "でぃ",
+        "dhu" : "でゅ",
+        "dhe" : "でぇ",
+        "dho" : "でょ",
+        "dwu" : "どぅ",
+        "na" : "な",
+        "ni" : "に",
+        "nu" : "ぬ",
+        "ne" : "ね",
+        "no" : "の",
+        "nya" : "にゃ",
+        "nyi" : "にぃ",
+        "nyu" : "にゅ",
+        "nye" : "にぇ",
+        "nyo" : "にょ",
+        "ha" : "は",
+        "hi" : "ひ",
+        "hu" : "ふ",
+        "he" : "へ",
+        "ho" : "ほ",
+        "ba" : "ば",
+        "bi" : "び",
+        "bu" : "ぶ",
+        "be" : "べ",
+        "bo" : "ぼ",
+        "pa" : "ぱ",
+        "pi" : "ぴ",
+        "pu" : "ぷ",
+        "pe" : "ぺ",
+        "po" : "ぽ",
+        "hya" : "ひゃ",
+        "hyi" : "ひぃ",
+        "hyu" : "ひゅ",
+        "hye" : "ひぇ",
+        "hyo" : "ひょ",
+        "bya" : "びゃ",
+        "byi" : "びぃ",
+        "byu" : "びゅ",
+        "bye" : "びぇ",
+        "byo" : "びょ",
+        "pya" : "ぴゃ",
+        "pyi" : "ぴぃ",
+        "pyu" : "ぴゅ",
+        "pye" : "ぴぇ",
+        "pyo" : "ぴょ",
+        "fa" : "ふぁ",
+        "fi" : "ふぃ",
+        "fu" : "ふ",
+        "fe" : "ふぇ",
+        "fo" : "ふぉ",
+        "fya" : "ふゃ",
+        "fyi" : "ふぃ",
+        "fyu" : "ふゅ",
+        "fye" : "ふぇ",
+        "fyo" : "ふょ",
+        "ma" : "ま",
+        "mi" : "み",
+        "mu" : "む",
+        "me" : "め",
+        "mo" : "も",
+        "mya" : "みゃ",
+        "myi" : "みぃ",
+        "myu" : "みゅ",
+        "mye" : "みぇ",
+        "myo" : "みょ",
+        "ya" : "や",
+        "yi" : "い",
+        "yu" : "ゆ",
+        "ye" : "いぇ",
+        "yo" : "よ",
+        "lya" : "ゃ",
+        "lyi" : "ぃ",
+        "lyu" : "ゅ",
+        "lye" : "ぇ",
+        "lyo" : "ょ",
+        "xya" : "ゃ",
+        "xyi" : "ぃ",
+        "xyu" : "ゅ",
+        "xye" : "ぇ",
+        "xyo" : "ょ",
+        "ra" : "ら",
+        "ri" : "り",
+        "ru" : "る",
+        "re" : "れ",
+        "ro" : "ろ",
+        "rya" : "りゃ",
+        "ryi" : "りぃ",
+        "ryu" : "りゅ",
+        "rye" : "りぇ",
+        "ryo" : "りょ",
+        "wa" : "わ",
+        "wi" : "うぃ",
+        "wu" : "う",
+        "we" : "うぇ",
+        "wo" : "を",
+        "lwa" : "ゎ",
+        "xwa" : "ゎ",
+        "n\"" : "ん",
+        "nn" : "ん",
+        "wyi" : "ゐ",
+        "wye" : "ゑ",
+
+        "bba": "っば",
+        "bbi": "っび",
+        "bbu": "っぶ",
+        "bbe": "っべ",
+        "bbo": "っぼ",
+        "dda": "っだ",
+        "ddi": "っぢ",
+        "ddu": "っづ",
+        "dde": "っで",
+        "ddo": "っど",
+        "ffa": "っふぁ",
+        "ffi": "っふぃ",
+        "ffu": "っふ",
+        "ffe": "っふぇ",
+        "ffo": "っふぉ",
+        "gga": "っが",
+        "ggi": "っぎ",
+        "ggu": "っぐ",
+        "gge": "っげ",
+        "ggo": "っご",
+        "hha": "っは",
+        "hhi": "っひ",
+        "hhu": "っふ",
+        "hhe": "っへ",
+        "hho": "っほ",
+        "jja": "っじゃ",
+        "jji": "っじ",
+        "jju": "っじゅ",
+        "jje": "っじぇ",
+        "jjo": "っじょ",
+        "kka": "っか",
+        "kki": "っき",
+        "kku": "っく",
+        "kke": "っけ",
+        "kko": "っこ",
+        "mma": "っま",
+        "mmi": "っみ",
+        "mmu": "っむ",
+        "mme": "っめ",
+        "mmo": "っも",
+        "ppa": "っぱ",
+        "ppi": "っぴ",
+        "ppu": "っぷ",
+        "ppe": "っぺ",
+        "ppo": "っぽ",
+        "rra": "っら",
+        "rri": "っり",
+        "rru": "っる",
+        "rre": "っれ",
+        "rro": "っろ",
+        "ssa": "っさ",
+        "ssi": "っし",
+        "ssu": "っす",
+        "sse": "っせ",
+        "sso": "っそ",
+        "tta": "った",
+        "tti": "っち",
+        "ttu": "っつ",
+        "tte": "って",
+        "tto": "っと",
+        "vva": "っヴぁ",
+        "vvi": "っヴぃ",
+        "vvu": "っヴ",
+        "vve": "っヴぇ",
+        "vvo": "っヴぉ",
+        "wwa": "っわ",
+        "wwi": "っうぃ",
+        "wwu": "っう",
+        "wwe": "っうぇ",
+        "wwo": "っを",
+        "xxa": "っぁ",
+        "xxi": "っぃ",
+        "xxu": "っぅ",
+        "xxe": "っぇ",
+        "xxo": "っぉ",
+        "yya": "っや",
+        "yyi": "っい",
+        "yyu": "っゆ",
+        "yye": "っいぇ",
+        "yyo": "っよ",
+        "zza": "っざ",
+        "zzi": "っじ",
+        "zzu": "っず",
+        "zze": "っぜ",
+        "zzo": "っぞ",
+    },
+
+    "symbol": {
+        " "  : "　",
+        ","  : "、",
+        "."  : "。",
+        "!"  : "！",
+        "\"" : "\u201d",
+        "#"  : "＃",
+        "$"  : "＄",
+        "%"  : "％",
+        "&"  : "＆",
+        "\""  : "\u2019",
+        "("  : "（",
+        ")"  : "）",
+        "~"  : "\uff5e",
+        "-"  : "ー",
+        "="  : "＝",
+        "^"  : "＾",
+        "\\" : "＼",
+        "|"  : "｜",
+        "`"  : "\u2018",
+        "@"  : "＠",
+        "{"  : "｛",
+        "["  : "「",
+        "+"  : "＋",
+        ";"  : "；",
+        "*"  : "＊",
+        ":"  : "：",
+        "}"  : "｝",
+        "]"  : "」",
+        "<"  : "＜",
+        ">"  : "＞",
+        "?"  : "？",
+        "/"  : "／",
+        "_"  : "＿",
+        "¥"  : "￥",
+
+        "0": "０",
+        "1": "１",
+        "2": "２",
+        "3": "３",
+        "4": "４",
+        "5": "５",
+        "6": "６",
+        "7": "７",
+        "8": "８",
+        "9": "９"
+    },
+
+    "kana": {
+        "1" : "ぬ",
+        "2" : "ふ",
+        "3" : "あ",
+        "4" : "う",
+        "5" : "え",
+        "6" : "お",
+        "7" : "や",
+        "8" : "ゆ",
+        "9" : "よ",
+        "0" : "わ",
+        "-" : "ほ",
+        "^" : "へ",
+
+        "q" : "た",
+        "w" : "て",
+        "e" : "い",
+        "r" : "す",
+        "t" : "か",
+        "y" : "ん",
+        "u" : "な",
+        "i" : "に",
+        "o" : "ら",
+        "p" : "せ",
+        "@" : "゛",
+        "[" : "゜",
+
+        "a" : "ち",
+        "s" : "と",
+        "d" : "し",
+        "f" : "は",
+        "g" : "き",
+        "h" : "く",
+        "j" : "ま",
+        "k" : "の",
+        "l" : "り",
+        ";" : "れ",
+        ":" : "け",
+        "]" : "む",
+
+        "z" : "つ",
+        "x" : "さ",
+        "c" : "そ",
+        "v" : "ひ",
+        "b" : "こ",
+        "n" : "み",
+        "m" : "も",
+        "," : "ね",
+        "." : "る",
+        "/" : "め",
+        "\\" : "ろ",
+
+
+        "!" : "ぬ",
+        "\"" : "ふ",
+        "#" : "ぁ",
+        "$" : "ぅ",
+        "%" : "ぇ",
+        "&" : "ぉ",
+        "'" : "ゃ",
+        "(" : "ゅ",
+        ")" : "ょ",
+        "~" : "を",
+        "=" : "ほ",
+
+        "Q" : "た",
+        "W" : "て",
+        "E" : "ぃ",
+        "R" : "す",
+        "T" : "ヵ",
+        "Y" : "ん",
+        "U" : "な",
+        "I" : "に",
+        "O" : "ら",
+        "P" : "せ",
+        "`" : "゛",
+
+        "{" : "「",
+
+        "A" : "ち",
+        "S" : "と",
+        "D" : "し",
+        "F" : "ゎ",
+        "G" : "き",
+        "H" : "く",
+        "J" : "ま",
+        "K" : "の",
+        "L" : "り",
+        "+" : "れ",
+        "*" : "ヶ",
+
+        "}" : "」",
+
+        "Z" : "っ",
+        "X" : "さ",
+        "C" : "そ",
+        "V" : "ゐ",
+        "B" : "こ",
+        "M" : "も",
+        "N" : "み",
+        "<" : "、",
+        ">" : "。",
+
+        "?" : "・",
+        "_" : "ろ",
+
+        "¥" : "ー"
+    }
+}
+
+class Editor:
+    def __init__(self):
+        self._preedit: str = ""
+        self._preedit_in: str = ""
+        self._candidate: str = ""
+        self._romaji = key_table["romaji"]
+        self._kana = key_table["kana"]
+        self._symbol = key_table["symbol"]
+        self._converter: Optional[YuinoConverter] = None
+
+    @property
+    def mode_romaji(self):
+        return self._romaji | self._symbol
+
+    @property
+    def mode_kana(self):
+        return self._kana | self._symbol
+
+    @property
+    def preedit_text(self) -> str:
+        return self._preedit + self._preedit_in
+
+    @property
+    def is_preedit(self) -> bool:
+        return len(self.preedit_text) > 0
+
+    def build_convertor(self, model_path: str):
+        self._converter = YuinoConverter(model_path)
+
+    def convert(self, text: str) -> str:
+        self._preedit = ""
+        self._preedit_in = ""
+
+        for keyval in text:
+            inputs = self._preedit_in + keyval
+            if inputs in self.mode_romaji.keys():
+                self._preedit += self.mode_romaji[inputs]
+                self._preedit_in = ""
+
+            else:
+                self._preedit_in += keyval
+
+        candidates = ""
+        if self._converter is not None:
+            candidates = self._converter.convert(self._preedit)
+        return candidates
+
+editor = Editor()
+
+
+@app.get("/")
+async def read_index():
+    return FileResponse("index.html")
+
+
+# 画面からテキストを受け取って「編集」して返すAPI
+@app.get("/convert")
+async def convert_text(text: str = Query("")):
+    converted = editor.convert(text)
+    return {
+        "converted_text": converted,
+        "length": len(converted)
+    }
 
 
 def toy_run():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-m', '--model_path', help='Yuino Model Path', default="YuinoLM")
+    arg_parser.add_argument('-p', '--port_num', default=8888, type=int)
     args = arg_parser.parse_args()
 
-    print("Preparing the dictionary...")
-    converter = YuinoConverter(args.model_path)
+    editor.build_convertor(args.model_path)
 
-    print('--Yuino TOY-BOX-- (Exit with Ctrl+D)')
-    while True:
-        try:
-            kana = input("かな > ")
-            rsp = converter.convert(kana)
-            print("漢字: " + rsp)
+    uvicorn.run(app, host="0.0.0.0", port=args.port_num)
 
-        except EOFError:
-            print("bye!")
-            break

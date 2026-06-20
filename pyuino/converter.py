@@ -13,17 +13,21 @@ class YuinoConverter:
         self._loss_func = torch.nn.BCEWithLogitsLoss()
         self._device = device
 
+        self._kana = ""
+        self._preedit = ""
+        self._past_key_values = None
+        self._candidates = [(0., [self._dict.bos_id], None)]
+
+    @torch.no_grad()
     def convert(self, text):
-        past_key_values = None
         start_time = time.time()
         word_tree = self._dict.build_word_tree(text)
+        removed = self._set_kana(text)
 
-        with torch.no_grad():
-            candidates = []
+        if not removed:
             for i, yomi_s in enumerate(word_tree):
-                if i == 0:
-                    # Since [CLS] is included, the 0th one is ignored.
-                    candidates.append((0., [self._dict.bos_id], past_key_values),)
+                if i < self.len_fixed:
+                    # 既に予測済みのため次のフレーズへ進む
                     continue
 
                 min_cost = 0.
@@ -31,7 +35,7 @@ class YuinoConverter:
                 min_past_key_values = None
                 for yomi in yomi_s:
                     # Predict the next word vector from the previous words
-                    pre_words = candidates[i - len(yomi)]
+                    pre_words = self.get_candidate(i - len(yomi))
                     pred, past_key_values = self.predict(pre_words[1][-1], pre_words[2])
 
                     for wid in self._dict.gets(yomi):
@@ -43,14 +47,10 @@ class YuinoConverter:
                             min_past_key_values = past_key_values
 
                 # fixed this index
-                candidates.append((min_cost, min_words, min_past_key_values))
+                self._candidates.append((min_cost, min_words, min_past_key_values))
                 self._logger.debug("%f %s" % (min_cost, str([self._dict.surface(wid) for wid in min_words])))
 
-        fixed_words = ""
-        for i, word in enumerate(candidates[-1][1]):
-            if i != 0:
-                fixed_words += self._dict.surface(word)
-
+        fixed_words = self._fixed_text()
         self._logger.info("%s : %f sec" % (fixed_words, time.time() - start_time))
         return fixed_words
 
@@ -62,5 +62,34 @@ class YuinoConverter:
     def loss(self, y, y_hat):
         return self._loss_func(y, y_hat).item()
 
+    @property
+    def len_fixed(self):
+        return len(self._candidates)
 
+    def _set_kana(self, kana: str):
+        removed = False
+        if len(self._kana) > 0:
+            if len(kana) < len(self._kana):
+                # 1文字消されている
+                self._candidates.pop()
+                removed = True
+        else:
+            # 初回時なのでリセット
+            self._kana = ""
+            self._preedit = ""
+            self._past_key_values = None
+            self._candidates = [(0., [self._dict.bos_id], None)]
+            removed = True
 
+        self._kana = kana
+        return removed
+
+    def _fixed_text(self):
+        fixed_words = ""
+        for i, word in enumerate(self._candidates[-1][1]):
+            if i != 0:
+                fixed_words += self._dict.surface(word)
+        return fixed_words
+
+    def get_candidate(self, idx):
+        return self._candidates[idx]

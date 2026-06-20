@@ -31,7 +31,7 @@ class YuinoServer:
                         conn.send(message_resp.encode('utf-8'))
 
     def _respond(self, message: str) -> str:
-        ret_msg = {}
+        ret_msg = ""
 
         try:
             msg = json.loads(message)
