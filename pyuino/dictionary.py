@@ -26,8 +26,7 @@ def build_dictionary(fs_model_path="./model.bin"):
     def get_vector(input_text: str):
         y = sigmoid(torch.tensor(ft_model[input_text], dtype=torch.bfloat16))
         y = torch.where((y > 0.5), 1, 0)
-        powers = 2 ** torch.arange(y.size(0) - 1, -1, -1)
-        return (y * powers).sum().item()
+        return sum(x * (1 << _i) for _i, x in enumerate(reversed(y.tolist())))
 
     logger = getLogger("YuinoDictionaryBuilder")
     dic_csv_files = [
@@ -114,7 +113,7 @@ class YuinoDicPosId:
 
 
 class YuinoDictionary:
-    def __init__(self, model_path: Optional[str]=None, num_bits=32):
+    def __init__(self, model_path: Optional[str]=None, num_bits=64):
         pos_id_path = os.path.join(model_path, "pos_id.csv")
         self._pos_id = YuinoDicPosId(pos_id_path)
         self._pos_emb = torch.eye(self._pos_id.pos_id_size)

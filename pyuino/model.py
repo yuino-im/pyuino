@@ -40,9 +40,8 @@ class YuinoOnnx(nn.Module):
 
 
 class YuinoModel(Qwen3PreTrainedModel):
-    word_emb_size = 32
+    word_emb_size = 64
     pos_ids_size = 1600
-    #label_emb_size = 768
 
     def __init__(self, config: Qwen3Config):
         super().__init__(config)
@@ -124,5 +123,4 @@ class YuinoModel(Qwen3PreTrainedModel):
     def get_pos_id(self, inputs_poss: torch.LongTensor) -> int:
         y = self.sigmoid(self.pos_emb(inputs_poss))
         y = torch.where((y > 0.5), 1, 0)
-        powers = 2 ** torch.arange(y.size(0) - 1, -1, -1)
-        return (y * powers).sum().item()
+        return sum(x * (1 << i) for i, x in enumerate(reversed(y.tolist())))

@@ -19,10 +19,10 @@ class YuinoConverter:
         self._candidates = [(0., [self._dict.bos_id], None)]
 
     @torch.no_grad()
-    def convert(self, text):
+    def convert(self, text, removed_check=True):
         start_time = time.time()
         word_tree = self._dict.build_word_tree(text)
-        removed = self._set_kana(text)
+        removed = self._set_kana(text) if removed_check else False
 
         if not removed:
             for i, yomi_s in enumerate(word_tree):
