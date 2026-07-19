@@ -80,7 +80,7 @@ class YuinoTrainer(Trainer):
             training_args: TrainingArguments,
             data_cache_dir: str,
             data_len_per: float = 0.01,
-            valid_len_per: float = 0.1,
+            valid_len_per: float = 0.01,
             optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (None, None)
     ):
         all_dataset = YuinoDatasets(cache_dir=data_cache_dir, data_len_per=data_len_per)

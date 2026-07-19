@@ -1,59 +1,25 @@
 import torch
 from torch import nn
 from typing import Optional
-from transformers import Qwen3Model, Qwen3PreTrainedModel, Qwen3Config
+from transformers import GenerationMixin, GPTNeoXPreTrainedModel, GPTNeoXModel, GPTNeoXConfig
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from transformers.cache_utils import Cache
 
 
-class YuinoOnnx(nn.Module):
-    def __init__(self, model):
-        super().__init__()
-        self.model = model
-        self.num_layers = model.config.num_hidden_layers
-
-    def forward(self, inputs_embeds, attention_mask, position_ids, *past_key_values_flat):
-        past_key_values = None
-        if len(past_key_values_flat) > 0:
-            past_key_values = []
-            for i in range(self.num_layers):
-                k = past_key_values_flat[i * 2]
-                v = past_key_values_flat[i * 2 + 1]
-                past_key_values.append((k, v))
-            past_key_values = tuple(past_key_values)
-
-        outputs = self.model(
-            inputs_embeds=inputs_embeds,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            use_cache=True,
-            return_dict=True
-        )
-
-        present_key_values_flat = []
-        for k, v in outputs.past_key_values:
-            present_key_values_flat.append(k)
-            present_key_values_flat.append(v)
-
-        return outputs.logits, *present_key_values_flat
-
-
-class YuinoModel(Qwen3PreTrainedModel):
+class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
     word_emb_size = 64
-    pos_ids_size = 1600
+    pos_ids_size = 1588
 
-    def __init__(self, config: Qwen3Config):
+    def __init__(self, config: GPTNeoXConfig):
         super().__init__(config)
-        self.model = Qwen3Model(config)
+        self.model = GPTNeoXModel(config)
         self.loss_func = nn.BCEWithLogitsLoss(reduction="none")
         self.p_loss_func = nn.CrossEntropyLoss(ignore_index=config.pad_token_id)
         self.sigmoid = nn.Sigmoid()
 
-        #self.word_enc = nn.Linear(self.label_emb_size, self.word_emb_size)
         self.pos_emb = nn.Embedding(self.pos_ids_size, self.word_emb_size, dtype=config.dtype)
         self.lm_in = nn.Linear((self.word_emb_size * 2), config.hidden_size, bias=False)
-        self.lm_out = nn.Linear(config.hidden_size, (self.word_emb_size * 2), bias=False)
+        self.lm_head = nn.Linear(config.hidden_size, (self.word_emb_size * 2), bias=False)
         self.pos_head = nn.Linear(self.word_emb_size, self.pos_ids_size, bias=False)
         self.post_init()
 
@@ -88,7 +54,9 @@ class YuinoModel(Qwen3PreTrainedModel):
             cache_position=cache_position,
             **kwargs,
         )
-        logits = self.lm_out(outputs.last_hidden_state)
+        logits = self.lm_head(outputs.last_hidden_state)
+        pos_logits = self.pos_head(logits[:, :, self.word_emb_size:])
+        out_logits = torch.cat((logits[:, :, :self.word_emb_size], pos_logits), dim=2)
 
         loss = None
         if labels is not None:
@@ -97,24 +65,20 @@ class YuinoModel(Qwen3PreTrainedModel):
             shift_emb_labels = torch.cat((shift_emb_labels, emp_emb_labels), dim=1)
             
             # get loss word emb
-            loss_w = self.loss_func(logits[:,:,:self.word_emb_size], shift_emb_labels[:,:,:self.word_emb_size])
+            loss_w = self.loss_func(logits, shift_emb_labels)
             loss_w = loss_w.view(loss_w.size(0), -1).sum(dim=1).mean()
 
             # get loss pos emb
-            loss_p1 = self.loss_func(logits[:,:,self.word_emb_size:], shift_emb_labels[:,:,self.word_emb_size:])
-            loss_p1 = loss_p1.view(loss_p1.size(0), -1).sum(dim=1).mean()
-            pos_logits = self.pos_head(logits[:,:,self.word_emb_size:])
             shift_pos_labels = inputs_poss[:, 1:].contiguous()
             emp_pos_labels = torch.zeros((inputs_poss.shape[0], 1), dtype=torch.long, device=inputs_poss.device)
             shift_pos_labels = torch.cat((shift_pos_labels, emp_pos_labels), dim=1)
-            loss_p2 = self.p_loss_func(pos_logits.view(-1, self.pos_ids_size), shift_pos_labels.view(-1))
-            loss_p = loss_p1 * loss_p2
+            loss_p = self.p_loss_func(pos_logits.view(-1, self.pos_ids_size), shift_pos_labels.view(-1))
 
             loss = loss_w + loss_p
 
         return CausalLMOutputWithPast(
             loss=loss,
-            logits=logits,
+            logits=out_logits,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.last_hidden_state,
             attentions=outputs.attentions,
@@ -124,3 +88,20 @@ class YuinoModel(Qwen3PreTrainedModel):
         y = self.sigmoid(self.pos_emb(inputs_poss))
         y = torch.where((y > 0.5), 1, 0)
         return sum(x * (1 << i) for i, x in enumerate(reversed(y.tolist())))
+
+
+class YuinoConvModel(torch.nn.Module):
+    def __init__(self, model: YuinoModel):
+        super().__init__()
+        self.model = model
+
+    def forward(self, inputs_embeds):
+        # transformers>=4.5x builds the causal mask with torch.vmap inside
+        # create_causal_mask(), which torch.jit.trace cannot trace (it fails with
+        # "RuntimeError: unordered_map::at"). Passing an already-4D additive mask
+        # makes create_causal_mask early-exit and return it as-is, avoiding vmap.
+        b, s, _ = inputs_embeds.shape
+        mask = torch.full((s, s), float("-inf"), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
+        mask = torch.triu(mask, diagonal=1).unsqueeze(0).unsqueeze(0).expand(b, 1, s, s)
+        outputs = self.model(inputs_embeds=inputs_embeds, attention_mask=mask, use_cache=False)
+        return outputs.logits
