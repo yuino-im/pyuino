@@ -1,6 +1,7 @@
 import time
 import torch
 from logging import getLogger
+import torch.nn.functional as F
 from .model import YuinoModel
 from .dictionary import YuinoDictionary
 
@@ -39,8 +40,7 @@ class YuinoConverter:
                     pred, past_key_values = self.predict(pre_words[1][-1], pre_words[2])
 
                     for wid in self._dict.gets(yomi):
-                        embed = self._dict.embed([wid]).squeeze(0)
-                        cost = self.loss(pred, embed) + pre_words[0]
+                        cost = self.cost(pred, wid) + pre_words[0]
                         if min_cost == 0. or cost < min_cost:
                             min_cost = cost
                             min_words = pre_words[1] + [wid]
@@ -59,8 +59,11 @@ class YuinoConverter:
         y = self._model(inputs_embeds=wt, past_key_values=past_key_values, use_cache=True)
         return y.logits[:, -1, :], y.past_key_values
 
-    def loss(self, y, y_hat):
-        return self._loss_func(y, y_hat).item()
+    def cost(self, pred, wid):
+        embed = self._dict.word_embed(wid)
+        loss = self._loss_func(embed, pred[:, :64]).item()
+        pos_prob = F.softmax(pred[:, 64:]).squeeze()[self._dict.pos(wid)]
+        return loss * (1 - pos_prob)
 
     @property
     def len_fixed(self):

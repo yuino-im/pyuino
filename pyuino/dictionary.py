@@ -169,6 +169,9 @@ class YuinoDictionary:
     def pos(self, wid):
         return self._words[wid].pos
 
+    def cost(self, wid):
+        return self._words[wid].cost
+
     def embed(self, words: List[int]):
         wt = []
         for wid in words:
@@ -177,3 +180,7 @@ class YuinoDictionary:
             emb = torch.cat([w_vec, p_vec]).float()
             wt.append(emb.unsqueeze(0))
         return torch.cat(wt).unsqueeze(0)
+
+    def word_embed(self, wid: int):
+        emb = (self._words[wid].vector >> self._shifts) & 1
+        return emb.float().unsqueeze(0)
