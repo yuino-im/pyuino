@@ -7,9 +7,8 @@ from typing import Optional, List
 from logging import getLogger
 from tqdm import tqdm
 import fasttext
-from torch import nn
 from .model import YuinoModel
-from .pb import YuinoWord, YuinoPos, YuinoDic
+from .pb import YuinoWord, YuinoDic
 
 
 def _get_tqdm_bar(file_path):
@@ -21,13 +20,6 @@ def _get_tqdm_bar(file_path):
 
 def build_dictionary(fs_model_path="./model.bin"):
     ft_model = fasttext.load_model(fs_model_path)
-    sigmoid = nn.Sigmoid()
-
-    def get_vector(input_text: str):
-        y = sigmoid(torch.tensor(ft_model[input_text], dtype=torch.bfloat16))
-        y = torch.where((y > 0.5), 1, 0)
-        return sum(x * (1 << _i) for _i, x in enumerate(reversed(y.tolist())))
-
     logger = getLogger("YuinoDictionaryBuilder")
     dic_csv_files = [
         "small_lex.csv",
@@ -37,23 +29,14 @@ def build_dictionary(fs_model_path="./model.bin"):
     model = YuinoModel.from_pretrained("YuinoLM")
     pos_id = YuinoDicPosId()
     anya_words = YuinoDic()
-    poss = []
     words = []
-
-    # reg pos_id
-    for i in range(pos_id.pos_id_size):
-        pos = YuinoPos()
-        pos.id = i
-        pos.vec = model.get_pos_id(torch.tensor(i))
-        poss.append(pos)
-    anya_words.poss.extend(poss)
 
     # add BOS (id=0)
     word = YuinoWord()
     word.surface = "[CLS]"
     word.read = "[CLS]"
     word.pos = pos_id.bos_id
-    word.vector = get_vector("__BOS")
+    word.vector = model.get_word_id(torch.from_numpy(ft_model["__BOS"]))
     words.append(word)
 
     for csv_file in dic_csv_files:
@@ -70,7 +53,7 @@ def build_dictionary(fs_model_path="./model.bin"):
                         word.read = jaconv.kata2hira(line[11])
                         word.pos = pos_id.get_pos_id((line[5], line[6], line[7], line[8], line[9], line[10]))
                         word.cost = int(line[3])
-                        word.vector = get_vector(line[0])
+                        word.vector = model.get_word_id(torch.from_numpy(ft_model[line[0]]))
                         words.append(word)
 
                     except RuntimeError as e:
@@ -128,16 +111,12 @@ class YuinoDictionary:
         trie_key = []
         trie_val = []
         self._words = []
-        self._pos_vec = []
 
         # add words
         for i, word in enumerate(yuino_words.words):
             trie_key.append(word.read)
             trie_val.append((i,))
             self._words.append(word)
-
-        for pos in yuino_words.poss:
-            self._pos_vec.append(pos.vec)
 
         # build trie
         self._trie = marisa_trie.RecordTrie("<L", zip(trie_key, trie_val))
@@ -174,12 +153,14 @@ class YuinoDictionary:
 
     def embed(self, words: List[int]):
         wt = []
+        pos = []
         for wid in words:
             w_vec = (self._words[wid].vector >> self._shifts) & 1
-            p_vec = (self._pos_vec[self.pos(wid)] >> self._shifts) & 1
-            emb = torch.cat([w_vec, p_vec]).float()
+            emb = torch.cat([w_vec]).float()
             wt.append(emb.unsqueeze(0))
-        return torch.cat(wt).unsqueeze(0)
+            pos.append(self.pos(wid))
+
+        return torch.cat(wt).unsqueeze(0), torch.tensor(pos).unsqueeze(0)
 
     def word_embed(self, wid: int):
         emb = (self._words[wid].vector >> self._shifts) & 1

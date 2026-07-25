@@ -7,6 +7,7 @@ from transformers.cache_utils import Cache
 
 
 class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
+    ft_vec_size = 128
     word_emb_size = 64
     pos_ids_size = 1588
 
@@ -17,10 +18,10 @@ class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
         self.p_loss_func = nn.CrossEntropyLoss(ignore_index=config.pad_token_id)
         self.sigmoid = nn.Sigmoid()
 
-        self.pos_emb = nn.Embedding(self.pos_ids_size, self.word_emb_size, dtype=config.dtype)
-        self.lm_in = nn.Linear((self.word_emb_size * 2), config.hidden_size, bias=False)
-        self.lm_head = nn.Linear(config.hidden_size, (self.word_emb_size * 2), bias=False)
-        self.pos_head = nn.Linear(self.word_emb_size, self.pos_ids_size, bias=False)
+        self.word_emb = nn.Linear(self.ft_vec_size, self.word_emb_size)
+        self.lm_win = nn.Linear(self.word_emb_size, int(config.hidden_size / 2))
+        self.pos_emb = nn.Embedding(self.pos_ids_size, int(config.hidden_size / 2), dtype=config.dtype)
+        self.lm_head = nn.Linear(config.hidden_size, (self.word_emb_size + self.pos_ids_size), bias=False)
         self.post_init()
 
     def forward(
@@ -37,11 +38,11 @@ class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
     ) -> CausalLMOutputWithPast:
 
         if labels is not None:
-            input_p_embs = self.sigmoid(self.pos_emb(inputs_poss))
-            input_p_embs = torch.where((input_p_embs > 0.5), 1., 0.).to(input_p_embs.dtype)
-            inputs_embeds = torch.cat((labels, input_p_embs), dim=2)
+            input_w_embs = self.sigmoid(self.word_emb(labels))
+            inputs_embeds = torch.where((input_w_embs > 0.5), 1., 0.).to(input_w_embs.dtype)
 
-        inputs_embeds_in = self.lm_in(inputs_embeds)
+        input_w_embs = self.lm_win(inputs_embeds)
+        inputs_embeds_in = torch.cat((input_w_embs, self.pos_emb(inputs_poss)), dim=2)
 
         # training model
         outputs: BaseModelOutputWithPast = self.model(
@@ -55,39 +56,39 @@ class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
             **kwargs,
         )
         logits = self.lm_head(outputs.last_hidden_state)
-        pos_logits = self.pos_head(logits[:, :, self.word_emb_size:])
-        out_logits = torch.cat((logits[:, :, :self.word_emb_size], pos_logits), dim=2)
 
         loss = None
         if labels is not None:
+            # get loss word emb
+            word_logits = logits[:, :, :self.word_emb_size]
             shift_emb_labels = inputs_embeds[:, 1:].contiguous()
             emp_emb_labels = torch.zeros((inputs_embeds.shape[0], 1, inputs_embeds.shape[2]), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
             shift_emb_labels = torch.cat((shift_emb_labels, emp_emb_labels), dim=1)
-            
-            # get loss word emb
-            loss_w = self.loss_func(logits, shift_emb_labels)
+            loss_w = self.loss_func(word_logits, shift_emb_labels)
             loss_w = loss_w.view(loss_w.size(0), -1).sum(dim=1).mean()
 
             # get loss pos emb
+            pos_logits = logits[:, :, self.word_emb_size:]
             shift_pos_labels = inputs_poss[:, 1:].contiguous()
             emp_pos_labels = torch.zeros((inputs_poss.shape[0], 1), dtype=torch.long, device=inputs_poss.device)
             shift_pos_labels = torch.cat((shift_pos_labels, emp_pos_labels), dim=1)
             loss_p = self.p_loss_func(pos_logits.view(-1, self.pos_ids_size), shift_pos_labels.view(-1))
 
             loss = loss_w + loss_p
+            #print("loss_w: %f * loss_p: %f = %f" % (loss_w.item(), loss_p.item(), loss.item()))
 
         return CausalLMOutputWithPast(
             loss=loss,
-            logits=out_logits,
+            logits=logits,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.last_hidden_state,
             attentions=outputs.attentions,
         )
 
-    def get_pos_id(self, inputs_poss: torch.LongTensor) -> int:
-        y = self.sigmoid(self.pos_emb(inputs_poss))
+    def get_word_id(self, labels: torch.Tensor) -> int:
+        y = self.sigmoid(self.word_emb(labels.squeeze()))
         y = torch.where((y > 0.5), 1, 0)
-        return sum(x * (1 << i) for i, x in enumerate(reversed(y.tolist())))
+        return sum(x * (1 << i) for i, x in enumerate(reversed(y.squeeze().tolist())))
 
 
 class YuinoConvModel(torch.nn.Module):

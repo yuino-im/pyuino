@@ -38,8 +38,7 @@ class YuinoCollator:
         return pairs
 
     def get_vector(self, input_text: str):
-        x = self._sigmoid(torch.tensor(self._ft_model[input_text], dtype=torch.bfloat16))
-        return torch.where((x > 0.5), 1., 0.).to(x.dtype)
+        return torch.tensor(self._ft_model[input_text], dtype=torch.bfloat16)
 
     def __call__(self, batch):
         labels = []

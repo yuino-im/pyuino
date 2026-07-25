@@ -39,7 +39,7 @@ def train():
     parser.add_argument('-c', '--conf', default="./YuinoLM/config.json")
     parser.add_argument('-e', '--epoch', type=int, default=1)
     parser.add_argument('--init_train', action='store_true')
-    parser.add_argument('--data_len_per', type=float, default=0.05)
+    parser.add_argument('--data_len_per', type=float, default=0.1)
     args = parser.parse_args()
 
     training_args = TrainingArguments(
@@ -76,9 +76,9 @@ def train():
 
 
 def main():
-    train()
+    #train()
     build_dict()
-    export_to_torchscript()
+    #export_to_torchscript()
 
 
 if __name__ == "__main__":
