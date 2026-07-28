@@ -8,12 +8,6 @@ message YuinoWord {
   int32 cost = 5;
 }
 
-message YuinoPos {
-  uint32 id = 1;
-  uint64 vec = 2;
-}
-
 message YuinoDic {
   repeated YuinoWord words = 1;
-  repeated YuinoPos poss = 2;
 }

@@ -32,38 +32,55 @@ class YuinoConverter:
                     continue
 
                 min_cost = 0.
+                min_loss = 0.
+                min_pos_prob = 0.
                 min_words = []
                 min_past_key_values = None
                 for yomi in yomi_s:
                     # Predict the next word vector from the previous words
                     pre_words = self.get_candidate(i - len(yomi))
-                    pred, past_key_values = self.predict(pre_words[1][-1], pre_words[2])
+                    word_pred, pos_pred, past_key_values = self.predict(pre_words[1][-1], pre_words[2])
+                    _, pos_top_k_indices = torch.topk(pos_pred, k=5, dim=1)
 
                     for wid in self._dict.gets(yomi):
-                        cost = self.cost(pred, wid) + pre_words[0]
+                        loss = self.cost(word_pred, wid)
+                        pos_prob = pos_pred.squeeze()[self._dict.pos(wid)].item()
+                        cost = loss + pre_words[0]
+                        if self._dict.pos(wid) not in pos_top_k_indices:
+                            # ほぼありえない品詞なためコスト無効化
+                            cost += 0xff
                         if min_cost == 0. or cost < min_cost:
                             min_cost = cost
+                            min_loss = loss
+                            min_pos_prob = pos_prob
                             min_words = pre_words[1] + [wid]
                             min_past_key_values = past_key_values
 
                 # fixed this index
                 self._candidates.append((min_cost, min_words, min_past_key_values))
-                self._logger.debug("%f %s" % (min_cost, str([self._dict.surface(wid) for wid in min_words])))
+                self._logger.debug("%f (%f/%f) %s" % (min_cost, min_loss, min_pos_prob, str([self._dict.surface(wid) for wid in min_words])))
 
         fixed_words = self._fixed_text()
         self._logger.info("%s : %f sec" % (fixed_words, time.time() - start_time))
         return fixed_words
 
     def predict(self, wid: int, past_key_values):
-        wt = self._dict.embed([wid]).to(self._device)
-        y = self._model(inputs_embeds=wt, past_key_values=past_key_values, use_cache=True)
-        return y.logits[:, -1, :], y.past_key_values
+        wt, pos = self._dict.embed([wid])
+        y = self._model(
+            inputs_embeds=wt.to(self._device),
+            inputs_poss=pos.to(self._device),
+            past_key_values=past_key_values,
+            use_cache=True
+        )
+        logits = y.logits[:, -1, :]
+        word_pred = logits[:, :64]
+        pos_pred = F.softmax(logits[:, 64:])
+        return word_pred, pos_pred, y.past_key_values
 
     def cost(self, pred, wid):
         embed = self._dict.word_embed(wid)
-        loss = self._loss_func(embed, pred[:, :64]).item()
-        pos_prob = F.softmax(pred[:, 64:]).squeeze()[self._dict.pos(wid)]
-        return loss * (1 - pos_prob)
+        loss = self._loss_func(embed, pred).item()
+        return loss
 
     @property
     def len_fixed(self):
