@@ -49,7 +49,7 @@ class YuinoConverter:
                         if self._dict.pos(wid) not in pos_top_k_indices:
                             # ほぼありえない品詞なためコスト無効化
                             cost += 0xff
-                        if min_cost == 0. or cost < min_cost:
+                        if cost < min_cost or min_cost == 0.:
                             min_cost = cost
                             min_loss = loss
                             min_pos_prob = pos_prob
@@ -99,7 +99,6 @@ class YuinoConverter:
             self._preedit = ""
             self._past_key_values = None
             self._candidates = [(0., [self._dict.bos_id], None)]
-            removed = True
 
         self._kana = kana
         return removed

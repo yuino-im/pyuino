@@ -2,7 +2,7 @@ import argparse
 import json
 import torch
 from transformers import TrainingArguments, GPTNeoXConfig
-from pyuino import YuinoModel, YuinoTrainer, build_dictionary
+from pyuino import YuinoModel, YuinoTrainer, YuinoConverter, build_dictionary
 from pyuino.model import YuinoConvModel
 
 import os
@@ -16,6 +16,11 @@ model_id = "YuinoLM"
 
 def build_dict():
     build_dictionary()
+
+
+def convert():
+    conv = YuinoConverter("YuinoLM", device="cpu")
+    conv.convert("わ", removed_check=True)
 
 
 def export_to_torchscript():
@@ -76,9 +81,15 @@ def train():
 
 
 def main():
-    #train()
+    # training
+    train()
     build_dict()
+
+    # to torch script
     #export_to_torchscript()
+
+    # convert check
+    #convert()
 
 
 if __name__ == "__main__":
