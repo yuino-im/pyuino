@@ -7,21 +7,23 @@ from transformers.cache_utils import Cache
 
 
 class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
-    ft_vec_size = 128
+    chive_vec = 300
     word_emb_size = 64
     pos_ids_size = 1588
 
     def __init__(self, config: GPTNeoXConfig):
         super().__init__(config)
         self.model = GPTNeoXModel(config)
-        self.loss_func = nn.BCEWithLogitsLoss(reduction="none")
+        self.c_loss_func = nn.BCEWithLogitsLoss(reduction="none")
+        self.w_loss_func = nn.MSELoss(reduction="none")
         self.p_loss_func = nn.CrossEntropyLoss(ignore_index=config.pad_token_id)
         self.sigmoid = nn.Sigmoid()
 
-        self.word_emb = nn.Linear(self.ft_vec_size, self.word_emb_size)
+        self.word_emb = nn.Linear(self.chive_vec, self.word_emb_size)
         self.lm_win = nn.Linear(self.word_emb_size, int(config.hidden_size / 2))
         self.pos_emb = nn.Embedding(self.pos_ids_size, int(config.hidden_size / 2), dtype=config.dtype)
-        self.lm_head = nn.Linear(config.hidden_size, (self.word_emb_size + self.pos_ids_size), bias=False)
+        self.lm_head = nn.Linear(config.hidden_size, (self.word_emb_size + self.pos_ids_size))
+        self.w_head = nn.Linear(self.word_emb_size, self.chive_vec)
         self.post_init()
 
     def forward(
@@ -41,8 +43,7 @@ class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
             input_w_embs = self.sigmoid(self.word_emb(labels))
             inputs_embeds = torch.where((input_w_embs > 0.5), 1., 0.).to(input_w_embs.dtype)
 
-        input_w_embs = self.lm_win(inputs_embeds)
-        inputs_embeds_in = torch.cat((input_w_embs, self.pos_emb(inputs_poss)), dim=2)
+        inputs_embeds_in = torch.cat((self.lm_win(inputs_embeds), self.pos_emb(inputs_poss)), dim=2)
 
         # training model
         outputs: BaseModelOutputWithPast = self.model(
@@ -59,12 +60,20 @@ class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
 
         loss = None
         if labels is not None:
-            # get loss word emb
+            # get loss conv emb
             word_logits = logits[:, :, :self.word_emb_size]
             shift_emb_labels = inputs_embeds[:, 1:].contiguous()
             emp_emb_labels = torch.zeros((inputs_embeds.shape[0], 1, inputs_embeds.shape[2]), dtype=inputs_embeds.dtype, device=inputs_embeds.device)
             shift_emb_labels = torch.cat((shift_emb_labels, emp_emb_labels), dim=1)
-            loss_w = self.loss_func(word_logits, shift_emb_labels)
+            loss_c = self.c_loss_func(word_logits, shift_emb_labels)
+            loss_c = loss_c.view(loss_c.size(0), -1).sum(dim=1).mean()
+
+            # get loss word emb
+            w_dec = self.w_head(word_logits)
+            shift_emb_labels = labels[:, 1:].contiguous()
+            emp_emb_labels = torch.zeros((labels.shape[0], 1, labels.shape[2]), dtype=labels.dtype, device=labels.device)
+            shift_emb_labels = torch.cat((shift_emb_labels, emp_emb_labels), dim=1)
+            loss_w = self.w_loss_func(w_dec, shift_emb_labels)
             loss_w = loss_w.view(loss_w.size(0), -1).sum(dim=1).mean()
 
             # get loss pos emb
@@ -74,8 +83,8 @@ class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
             shift_pos_labels = torch.cat((shift_pos_labels, emp_pos_labels), dim=1)
             loss_p = self.p_loss_func(pos_logits.view(-1, self.pos_ids_size), shift_pos_labels.view(-1))
 
-            loss = loss_w + loss_p
-            #print("loss_w: %f * loss_p: %f = %f" % (loss_w.item(), loss_p.item(), loss.item()))
+            loss = (loss_c + loss_w) + loss_p
+            #print("loss_c: %f + loss_w: %f + loss_p: %f = %f" % (loss_c.item(), loss_w.item(), loss_p.item(), loss.item()))
 
         return CausalLMOutputWithPast(
             loss=loss,

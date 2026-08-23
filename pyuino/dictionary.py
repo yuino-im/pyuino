@@ -6,7 +6,7 @@ import marisa_trie
 from typing import Optional, List
 from logging import getLogger
 from tqdm import tqdm
-import fasttext
+import gensim
 from .model import YuinoModel
 from .pb import YuinoWord, YuinoDic
 
@@ -18,8 +18,12 @@ def _get_tqdm_bar(file_path):
     return bar
 
 
-def build_dictionary(fs_model_path="./model.bin"):
-    ft_model = fasttext.load_model(fs_model_path)
+def build_dictionary(chive_path="/var/data/chive-1.3-mc5_gensim/chive-1.3-mc5.kv"):
+    vectors = gensim.models.KeyedVectors.load(chive_path)
+    def get_vector(input_text: str):
+        in_txt = input_text if input_text in vectors else "unk"
+        return torch.tensor(vectors[in_txt].tolist())
+
     logger = getLogger("YuinoDictionaryBuilder")
     dic_csv_files = [
         "small_lex.csv",
@@ -33,10 +37,10 @@ def build_dictionary(fs_model_path="./model.bin"):
 
     # add BOS (id=0)
     word = YuinoWord()
-    word.surface = "[CLS]"
-    word.read = "[CLS]"
+    word.surface = "bos"
+    word.read = "bos"
     word.pos = pos_id.bos_id
-    word.vector = model.get_word_id(torch.from_numpy(ft_model["__BOS"]))
+    word.vector = model.get_word_id(get_vector("bos"))
     words.append(word)
 
     for csv_file in dic_csv_files:
@@ -53,7 +57,7 @@ def build_dictionary(fs_model_path="./model.bin"):
                         word.read = jaconv.kata2hira(line[11])
                         word.pos = pos_id.get_pos_id((line[5], line[6], line[7], line[8], line[9], line[10]))
                         word.cost = int(line[3])
-                        word.vector = model.get_word_id(torch.from_numpy(ft_model[line[0]]))
+                        word.vector = model.get_word_id(get_vector(line[0]))
                         words.append(word)
 
                     except RuntimeError as e:
@@ -133,7 +137,7 @@ class YuinoDictionary:
     def build_word_tree(self, in_text):
         in_len = len(in_text) + 1
         nodes_set = [[] for _ in range(in_len)]
-        nodes_set[0] = ["[CLS]"]
+        nodes_set[0] = ["bos"]
         for i in range(in_len):
             for prefix in self._trie.prefixes(in_text[i:]):
                 nodes_set[i + len(prefix)].append(prefix)
