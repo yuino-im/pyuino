@@ -1,12 +1,13 @@
 import argparse
 import uvicorn
+import os
 from typing import Optional
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
 from .converter import YuinoConverter
 
 app = FastAPI()
-
+my_dir = os.path.dirname(os.path.abspath(__file__))
 
 key_table = {
     "romaji": {
@@ -541,7 +542,7 @@ editor = Editor()
 
 @app.get("/")
 async def read_index():
-    return FileResponse("index.html")
+    return FileResponse(my_dir + "/index.html")
 
 
 # 画面からテキストを受け取って「編集」して返すAPI
