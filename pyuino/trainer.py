@@ -1,6 +1,6 @@
 import os
 import torch
-import fasttext
+import gensim
 from typing import Tuple
 from torch.utils.data.dataset import Subset
 from transformers import Trainer, TrainingArguments
@@ -12,24 +12,24 @@ from .dictionary import YuinoDicPosId
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class YuinoCollator:
-    def __init__(self, fs_model_path="./model.bin"):
+    def __init__(self, chive_path="/var/data/chive-1.3-mc5_gensim/chive-1.3-mc5.kv"):
         self._pos_ids = YuinoDicPosId()
-        self._ft_model = fasttext.load_model(fs_model_path)
+        self._vectors = gensim.models.KeyedVectors.load(chive_path)
         self._sigmoid = nn.Sigmoid()
-        self._bos_emb = self.get_vector("__BOS")
-        self._eos_emb = self.get_vector("__EOS")
+        self._bos_emb = self.get_vector("bos")
+        self._eos_emb = self.get_vector("eos")
 
     @staticmethod
     def _parse_text(text: str) -> list[tuple[str, int]]:
         pairs = []
         for m in text.split(" "):
             parts = m.split("/")
-            if len(parts) != 2:
+            if len(parts) != 3:
                 continue
 
             try:
-                surface = parts[0]
-                pos_id = int(parts[1])
+                surface = parts[1]
+                pos_id = int(parts[2])
             except ValueError:
                 continue
 
@@ -38,7 +38,8 @@ class YuinoCollator:
         return pairs
 
     def get_vector(self, input_text: str):
-        return torch.tensor(self._ft_model[input_text], dtype=torch.bfloat16)
+        in_txt = input_text if input_text in self._vectors else "unk"
+        return torch.tensor(self._vectors[in_txt].tolist(), dtype=torch.bfloat16)
 
     def __call__(self, batch):
         labels = []
