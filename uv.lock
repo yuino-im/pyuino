@@ -2755,6 +2755,7 @@ train = [
     { name = "sentencepiece" },
     { name = "sudachidict-full" },
     { name = "sudachipy" },
+    { name = "torch" },
 ]
 
 [package.metadata]
@@ -2770,7 +2771,8 @@ requires-dist = [
     { name = "sentencepiece", marker = "extra == 'train'", specifier = ">=0.2.2" },
     { name = "sudachidict-full", marker = "extra == 'train'", specifier = ">=20261015" },
     { name = "sudachipy", marker = "extra == 'train'", specifier = ">=0.7.0" },
-    { name = "torch" },
+    { name = "torch", marker = "extra == 'train'" },
+    { name = "torch", marker = "extra != 'train'", index = "https://download.pytorch.org/whl/cpu" },
     { name = "tqdm" },
     { name = "transformers" },
     { name = "uvicorn", specifier = ">=0.54.0" },

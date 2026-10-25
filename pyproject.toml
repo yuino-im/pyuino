@@ -21,6 +21,16 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "extra != 'train'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [project.optional-dependencies]
 train = [
     "accelerate>=1.15.0",
