@@ -35,14 +35,6 @@ INFO:     Uvicorn running on http://0.0.0.0:8888 (Press CTRL+C to quit)
 ```
 → 起動後に http://localhost:8888 へアクセスするとライブ変換で遊べます。  
 
-### サーバーの起動
-現在 IBus-Anya を利用することを想定します  
-IBus-Anya 起動前に、下記コマンドでサーバー側を起動してください
-
-```shell
-docker run -d -p 30055:30055 -v $HOME/.local/share/yuino:/opt/pyuino/YuinoLM ghcr.io/yuino-im/pyuino -m /opt/pyuino/YuinoLM
-```
-
 ### 使用モデル・データセット
 Yuino では下記のモデル、及びデータセットを使用して学習しました  
 （ありがとうございます！！）  
