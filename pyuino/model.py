@@ -43,7 +43,7 @@ class YuinoModel(GPTNeoXPreTrainedModel, GenerationMixin):
             input_w_embs = self.sigmoid(self.word_emb(labels))
             inputs_embeds = torch.where((input_w_embs > 0.5), 1., 0.).to(input_w_embs.dtype)
 
-        inputs_embeds_in = torch.cat((self.lm_win(inputs_embeds), self.pos_emb(inputs_poss)), dim=2)
+        inputs_embeds_in = torch.cat((self.lm_win(inputs_embeds.to(torch.bfloat16)), self.pos_emb(inputs_poss)), dim=2)
 
         # training model
         outputs: BaseModelOutputWithPast = self.model(

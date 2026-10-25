@@ -20,7 +20,7 @@ def build_dict():
 
 def convert():
     conv = YuinoConverter("YuinoLM", device="cpu")
-    conv.convert("わ", removed_check=True)
+    conv.convert("わたしのなまえはなかのです", removed_check=True)
 
 
 def export_to_torchscript():
@@ -81,14 +81,14 @@ def train():
 
 
 def main():
-    train()
-    build_dict()
+    #train()
+    #build_dict()
 
     # to torch script
     #export_to_torchscript()
 
     # convert check
-    #convert()
+    convert()
 
 
 if __name__ == "__main__":
