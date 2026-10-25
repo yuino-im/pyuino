@@ -15,9 +15,11 @@ dependencies = [
     "protobuf",
     "transformers",
     "datasets",
+    "gensim>=4.4.0",
     "jaconv",
     "marisa_trie",
     "fasttext",
+    "fastapi",
     "uvicorn>=0.54.0",
 ]
 
