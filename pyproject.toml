@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-requirements-txt", "hatch-vcs"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,7 +8,28 @@ description = "LLM Japanese Kana-Kanji convetor"
 authors = [{name = "Masahiko Hashimoto"}]
 readme = "README.md"
 requires-python = ">= 3.10"
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
+dependencies = [
+    "torch",
+    "tqdm",
+    "protobuf",
+    "transformers",
+    "datasets",
+    "jaconv",
+    "marisa_trie",
+    "fasttext",
+    "uvicorn>=0.54.0",
+]
+
+[project.optional-dependencies]
+train = [
+    "accelerate>=1.15.0",
+    "deepspeed>=0.19.8",
+    "gensim>=4.4.0",
+    "sentencepiece>=0.2.2",
+    "sudachidict-full>=20261015",
+    "sudachipy>=0.7.0",
+]
 
 [project.scripts]
 pyuino = "pyuino.server:run"
@@ -16,9 +37,6 @@ pyuino-toybox = "pyuino.toybox:toy_run"
 
 [tool.hatch.version]
 source = "vcs"
-
-[tool.hatch.metadata.hooks.requirements_txt]
-files = ["requirements.txt"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "toys/index.html" = "pyuino/index.html"
